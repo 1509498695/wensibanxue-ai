@@ -1,8 +1,9 @@
-export type HistoryItemType = 'topic' | 'argument' | 'material' | 'diagnosis'
+export type HistoryItemType = 'topic' | 'argument' | 'material' | 'diagnosis' | 'workflow'
 
 export type HistoryItem = {
   id: string
   type: HistoryItemType
+  mode?: 'demo' | 'api'
   title: string
   input: string
   output: string
@@ -19,6 +20,7 @@ const legacyTypeMap: Record<string, HistoryItemType> = {
   论点生成: 'argument',
   素材推荐: 'material',
   作文诊断: 'diagnosis',
+  五步写作: 'workflow',
 }
 
 function canUseLocalStorage() {
@@ -26,11 +28,15 @@ function canUseLocalStorage() {
 }
 
 function isHistoryItemType(type: unknown): type is HistoryItemType {
-  return type === 'topic' || type === 'argument' || type === 'material' || type === 'diagnosis'
+  return type === 'topic' || type === 'argument' || type === 'material' || type === 'diagnosis' || type === 'workflow'
 }
 
 function normalizeText(value: unknown) {
   return typeof value === 'string' ? value : ''
+}
+
+function normalizeMode(value: unknown): HistoryItem['mode'] {
+  return value === 'demo' || value === 'api' ? value : undefined
 }
 
 function normalizeHistoryItem(value: unknown): HistoryItem | null {
@@ -59,6 +65,7 @@ function normalizeHistoryItem(value: unknown): HistoryItem | null {
   return {
     id: normalizeText(record.id) || `${Date.now()}-${Math.random().toString(16).slice(2)}`,
     type: normalizedType,
+    mode: normalizeMode(record.mode),
     title: title || input.slice(0, 24) || '未命名记录',
     input,
     output,

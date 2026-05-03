@@ -18,6 +18,8 @@
     "appId": "com.wensibanxue.ai",
     "productName": "文思伴学 AI",
     "copyright": "Copyright © 2026 文思伴学 AI",
+    "electronDist": "node_modules/electron/dist",
+    "electronVersion": "39.8.9",
     "directories": {
       "output": "release",
       "buildResources": "build"
@@ -60,6 +62,7 @@
     }
   },
   "dependencies": {
+    "electron-store": "^11.0.2",
     "lucide-react": "^1.14.0",
     "react": "^19.2.5",
     "react-dom": "^19.2.5",

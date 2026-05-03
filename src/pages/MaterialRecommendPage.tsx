@@ -1,46 +1,186 @@
-import { useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import ReactMarkdown from 'react-markdown'
 import {
   BookOpenCheck,
   ClipboardCopy,
-  Download,
   FolderOpen,
-  GraduationCap,
   Newspaper,
+  PenTool,
   Quote,
+  RefreshCw,
+  Search,
   Sparkles,
   Star,
+  Tags,
   UserRoundCheck,
 } from 'lucide-react'
-import StudyIllustration from '../components/common/StudyIllustration'
+import RefineActionBar, { type RefineActionItem } from '../components/common/RefineActionBar'
+import ExportMenu from '../components/common/ExportMenu'
+import FavoriteButton from '../components/common/FavoriteButton'
+import PageHero from '../components/common/PageHero'
+import ThinkingPromptCard from '../components/common/ThinkingPromptCard'
+import { MaterialRecommendCards } from '../components/results/StructuredResultCards'
 import { getLLMConfig, chatCompletion } from '../services/llmClient'
 import { buildMaterialRecommendPrompt } from '../services/prompts'
+import { buildMaterialRefinePrompt, type MaterialRefineAction } from '../services/refinePrompts'
 import { addHistoryItem } from '../services/historyService'
-import { DEMO_MODE_NOTICE, demoMaterialRecommendResult } from '../services/demoContent'
-import { buildResultExportText, createExportFileName, downloadTextFile } from '../utils/exportText'
+import { parseModelJsonWithRepair } from '../services/jsonRepairService'
+import {
+  API_KEY_REQUIRED_NOTICE,
+  DEMO_MODE_NOTICE,
+  demoMaterialRecommendStructuredResult,
+  getDemoMaterialRefineResult,
+} from '../services/demoContent'
+import { getDemoMode, getStudentLearningMode } from '../services/settingsService'
+import type { MaterialRecommendResult } from '../types/results'
+import { exportResultFile } from '../utils/exportFile'
+import type { ResultExportFormat } from '../utils/exportFormatter'
+import { formatMaterialRecommendResult } from '../utils/resultText'
+import {
+  defaultMaterialLibraryTopicId,
+  getMaterialLibraryTopic,
+  localMaterialItemToText,
+  materialLibrary,
+  searchMaterialLibrary,
+  type LocalMaterialItem,
+} from '../data/materialLibrary'
+import { getFavorites, type FavoriteItem } from '../services/favoriteService'
 
 const materialTypes = ['人物事例', '时评热点', '名言警句', '全部']
-const gradeOptions = ['高一', '高二', '高三']
-const personMaterials = [
-  ['林则徐', '虎门销烟，体现家国责任与民族担当。'],
-  ['钱学森', '归国报效祖国，体现科学家的家国情怀。'],
-  ['黄文秀', '扎根基层扶贫，体现青年担当与奉献精神。'],
+const fallbackNotice = '模型返回格式不完全规范，已使用文本模式展示。'
+const materialRefineActionItems: Array<RefineActionItem<MaterialRefineAction>> = [
+  { id: 'replaceMaterials', label: '换一组素材', Icon: RefreshCw },
+  { id: 'generateUsage', label: '生成使用示范', Icon: PenTool },
+  { id: 'optimizeForExam', label: '按高考作文优化', Icon: Sparkles },
+  { id: 'addQuotes', label: '增加名言警句', Icon: Quote },
 ]
-const newsMaterials = [
-  ['航天青年团队', '在科技强国中贡献青春力量。'],
-  ['乡村振兴青年干部', '在基层一线实现个人价值。'],
-  ['志愿服务群体', '在社会需要中践行责任意识。'],
-]
-const quotes = ['苟利国家生死以，岂因祸福避趋之。', '天下兴亡，匹夫有责。', '青年者，国家之魂。']
+
+function filterLocalItems(items: LocalMaterialItem[], query: string) {
+  const trimmedQuery = query.trim().toLowerCase()
+
+  if (!trimmedQuery) {
+    return items
+  }
+
+  return items.filter((item) =>
+    [item.topicTitle, item.type, item.title, item.description, item.angle || ''].some((value) =>
+      value.toLowerCase().includes(trimmedQuery),
+    ),
+  )
+}
+
+function favoriteToLocalItem(item: FavoriteItem): LocalMaterialItem {
+  const type = item.type === 'quote' ? '名言警句' : '素材'
+
+  return {
+    id: item.id,
+    topicId: item.source || 'favorites',
+    topicTitle: item.source || '收藏夹',
+    type: type === '素材' ? '时评热点' : '名言警句',
+    title: item.title,
+    description: item.content,
+    angle: item.tags?.find((tag) => tag && tag !== item.source && tag !== type),
+  }
+}
+
+function LocalMaterialGroup({
+  items,
+  onCopy,
+  onFavoriteStatus,
+  title,
+  type,
+}: {
+  items: LocalMaterialItem[]
+  onCopy: (item: LocalMaterialItem) => void
+  onFavoriteStatus: (message: string) => void
+  title: string
+  type: LocalMaterialItem['type']
+}) {
+  if (items.length === 0) {
+    return null
+  }
+
+  const Icon = type === '人物事例' ? UserRoundCheck : type === '时评热点' ? Newspaper : type === '名言警句' ? Quote : Tags
+
+  return (
+    <section className={`local-material-group is-${type === '人物事例' ? 'person' : type === '名言警句' ? 'quote' : 'default'}`}>
+      <h3>
+        <Icon size={18} />
+        {title}
+      </h3>
+      <div className="local-material-grid">
+        {items.map((item) => (
+            <article className={`local-material-card is-${type === '名言警句' ? 'quote' : type === '人物事例' ? 'person' : 'default'}`} key={item.id}>
+              <div className="local-material-card__meta">
+                <span>{item.topicTitle}</span>
+                <span>{item.type}</span>
+              </div>
+              <strong>{item.title}</strong>
+              {type === '名言警句' ? <blockquote>{item.description}</blockquote> : <p>{item.description}</p>}
+              {item.angle ? <small>适用角度：{item.angle}</small> : null}
+              <div className="local-material-card__actions">
+                <button className="secondary-button is-compact" onClick={() => onCopy(item)} type="button">
+                  <ClipboardCopy size={15} />
+                  复制
+                </button>
+                <FavoriteButton
+                  favorite={{
+                    type: item.type === '名言警句' ? 'quote' : 'material',
+                    title: item.title,
+                    content: item.description,
+                    source: item.topicTitle,
+                    tags: [item.topicTitle, item.type, item.angle || ''].filter(Boolean),
+                  }}
+                  onStatusChange={(message) => onFavoriteStatus(message)}
+                />
+              </div>
+            </article>
+          ))}
+      </div>
+    </section>
+  )
+}
 
 function MaterialRecommendPage() {
   const [topic, setTopic] = useState('责任与担当')
   const [materialType, setMaterialType] = useState('全部')
-  const [grade, setGrade] = useState('高二')
-  const [result, setResult] = useState('')
+  const [libraryTopicId, setLibraryTopicId] = useState(defaultMaterialLibraryTopicId)
+  const [librarySearch, setLibrarySearch] = useState('')
+  const [favorites, setFavorites] = useState<FavoriteItem[]>(() => getFavorites())
+  const [showFavorites, setShowFavorites] = useState(false)
+  const [resultText, setResultText] = useState('')
+  const [structuredResult, setStructuredResult] = useState<MaterialRecommendResult | null>(null)
+  const [isTextFallback, setIsTextFallback] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
+  const [refiningAction, setRefiningAction] = useState<MaterialRefineAction | null>(null)
   const [error, setError] = useState('')
   const [copyStatus, setCopyStatus] = useState('')
+  const isBusy = isLoading || refiningAction !== null
+  const studentLearningMode = getStudentLearningMode()
+  const libraryRef = useRef<HTMLElement | null>(null)
+  const selectedLibraryTopic = getMaterialLibraryTopic(libraryTopicId)
+  const libraryItems = useMemo(() => searchMaterialLibrary(selectedLibraryTopic, librarySearch), [librarySearch, selectedLibraryTopic])
+  const favoriteMaterialItems = useMemo(
+    () => favorites.filter((item) => item.type === 'material' || item.type === 'quote').map(favoriteToLocalItem),
+    [favorites],
+  )
+  const visibleLibraryItems = showFavorites ? filterLocalItems(favoriteMaterialItems, librarySearch) : libraryItems
+
+  const handleCopyLocalMaterial = async (item: LocalMaterialItem) => {
+    try {
+      await navigator.clipboard.writeText(localMaterialItemToText(item))
+      setCopyStatus('已复制本地素材')
+      setError('')
+    } catch {
+      setError('复制失败，请手动复制')
+    }
+  }
+
+  const handleShowFavorites = () => {
+    setFavorites(getFavorites())
+    setShowFavorites(true)
+    libraryRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }
 
   const handleGenerate = async () => {
     const trimmedTopic = topic.trim()
@@ -53,22 +193,47 @@ function MaterialRecommendPage() {
     setIsLoading(true)
     setError('')
     setCopyStatus('')
+    setIsTextFallback(false)
 
-    if (!getLLMConfig().apiKey) {
-      setResult(demoMaterialRecommendResult)
+    if (getDemoMode()) {
+      const output = formatMaterialRecommendResult(demoMaterialRecommendStructuredResult)
+
+      setStructuredResult(demoMaterialRecommendStructuredResult)
+      setResultText(output)
+      addHistoryItem({
+        type: 'material',
+        mode: 'demo',
+        title: trimmedTopic.replace(/\s+/g, ' ').slice(0, 24),
+        input: trimmedTopic,
+        output,
+      })
       setCopyStatus(DEMO_MODE_NOTICE)
       setIsLoading(false)
       return
     }
 
+    if (!getLLMConfig().apiKey) {
+      setError(API_KEY_REQUIRED_NOTICE)
+      setIsLoading(false)
+      return
+    }
+
     try {
-      const content = await chatCompletion(buildMaterialRecommendPrompt(trimmedTopic, { grade, materialType }))
-      setResult(content)
+      const content = await chatCompletion(buildMaterialRecommendPrompt(trimmedTopic, { materialType }))
+      const parseResult = await parseModelJsonWithRepair<MaterialRecommendResult>(content)
+      const parsedResult = parseResult.result
+      const output = parsedResult ? formatMaterialRecommendResult(parsedResult) : content
+
+      setStructuredResult(parsedResult)
+      setResultText(output)
+      setIsTextFallback(!parsedResult)
+      setCopyStatus(parseResult.repaired ? '模型返回格式已自动修复。' : parsedResult ? '' : fallbackNotice)
       addHistoryItem({
         type: 'material',
+        mode: 'api',
         title: trimmedTopic.replace(/\s+/g, ' ').slice(0, 24),
         input: trimmedTopic,
-        output: content,
+        output,
       })
     } catch (caughtError) {
       setError(caughtError instanceof Error ? caughtError.message : '生成失败，请稍后重试')
@@ -77,35 +242,104 @@ function MaterialRecommendPage() {
     }
   }
 
-  const handleCopy = async () => {
-    if (!result) {
+  const handleRefine = async (action: MaterialRefineAction) => {
+    const trimmedTopic = topic.trim()
+    const actionLabel = materialRefineActionItems.find((item) => item.id === action)?.label || '二次优化'
+
+    if (!trimmedTopic || !resultText) {
+      setError('请先生成结果后再优化')
+      return
+    }
+
+    setRefiningAction(action)
+    setError('')
+    setCopyStatus('')
+
+    if (getDemoMode()) {
+      const demoResult = getDemoMaterialRefineResult(action)
+      const output = formatMaterialRecommendResult(demoResult)
+
+      setStructuredResult(demoResult)
+      setResultText(output)
+      setIsTextFallback(false)
+      addHistoryItem({
+        type: 'material',
+        mode: 'demo',
+        title: `${trimmedTopic.replace(/\s+/g, ' ').slice(0, 18)} · ${actionLabel}`,
+        input: trimmedTopic,
+        output,
+      })
+      setCopyStatus(`${DEMO_MODE_NOTICE} 优化完成。`)
+      setRefiningAction(null)
+      return
+    }
+
+    if (!getLLMConfig().apiKey) {
+      setError(API_KEY_REQUIRED_NOTICE)
+      setRefiningAction(null)
       return
     }
 
     try {
-      await navigator.clipboard.writeText(result)
+      const content = await chatCompletion(
+        buildMaterialRefinePrompt({
+          originalInput: trimmedTopic,
+          currentResult: structuredResult,
+          currentText: resultText,
+          action,
+        }),
+      )
+      const parseResult = await parseModelJsonWithRepair<MaterialRecommendResult>(content)
+      const parsedResult = parseResult.result
+      const output = parsedResult ? formatMaterialRecommendResult(parsedResult) : content
+
+      setStructuredResult(parsedResult)
+      setResultText(output)
+      setIsTextFallback(!parsedResult)
+      setCopyStatus(parseResult.repaired ? '模型返回格式已自动修复。' : parsedResult ? '优化完成' : fallbackNotice)
+      addHistoryItem({
+        type: 'material',
+        mode: 'api',
+        title: `${trimmedTopic.replace(/\s+/g, ' ').slice(0, 18)} · ${actionLabel}`,
+        input: trimmedTopic,
+        output,
+      })
+    } catch (caughtError) {
+      setError(caughtError instanceof Error ? caughtError.message : '优化失败，请稍后重试')
+    } finally {
+      setRefiningAction(null)
+    }
+  }
+
+  const handleCopy = async () => {
+    if (!resultText) {
+      return
+    }
+
+    try {
+      await navigator.clipboard.writeText(resultText)
       setCopyStatus('已复制素材结果')
     } catch {
       setError('复制失败，请手动复制')
     }
   }
 
-  const handleExport = () => {
-    if (!result) {
+  const handleExport = async (format: ResultExportFormat) => {
+    if (!resultText) {
       return
     }
 
     try {
-      downloadTextFile(
-        createExportFileName('素材推荐结果'),
-        buildResultExportText({
+      const result = await exportResultFile(format, '素材推荐结果', {
           typeLabel: '素材推荐器',
           title: topic.trim().replace(/\s+/g, ' ').slice(0, 24) || '素材推荐结果',
           input: topic.trim(),
-          output: result,
-        }),
-      )
-      setCopyStatus('已导出 txt 文件')
+          output: resultText,
+        })
+
+      if (!result.canceled) {
+        setCopyStatus('导出成功')
+      }
     } catch {
       setError('导出失败，请稍后重试')
     }
@@ -113,20 +347,16 @@ function MaterialRecommendPage() {
 
   return (
     <div className="material-page">
-      <header className="material-header">
-        <div className="material-header__copy">
-          <span className="material-header__icon" aria-hidden="true">
-            <FolderOpen size={42} strokeWidth={2.1} />
-          </span>
-          <div>
-            <h1>素材推荐器</h1>
-            <p>根据写作主题智能匹配人物事例、时评热点与名言警句，让素材积累更高效。</p>
-          </div>
-        </div>
-        <StudyIllustration className="material-illustration" />
-      </header>
+      <PageHero
+        className="material-header"
+        icon={<FolderOpen size={34} strokeWidth={2.1} />}
+        subtitle="根据写作主题智能匹配人物事例、时评热点与名言警句，让素材积累更高效。"
+        title="素材推荐器"
+        tone="teal"
+        variant="material"
+      />
 
-      <section className="material-input-card glass-card">
+      <section className="material-input-card glass-card app-card app-input-panel">
         <div className="card-title">
           <span className="small-title-icon is-teal">
             <BookOpenCheck size={19} />
@@ -142,12 +372,12 @@ function MaterialRecommendPage() {
           />
           <button
             className={`gradient-button material-recommend-button${isLoading ? ' button-loading' : ''}`}
-            disabled={isLoading}
+            disabled={isBusy}
             onClick={handleGenerate}
             type="button"
           >
             {isLoading ? <span className="loading-spinner" /> : <Sparkles size={20} />}
-            {isLoading ? '推荐中...' : result ? '重新推荐' : '推荐素材'}
+            {isLoading ? '推荐中...' : resultText ? '重新推荐' : '推荐素材'}
           </button>
         </div>
 
@@ -171,45 +401,111 @@ function MaterialRecommendPage() {
             </div>
           </div>
 
-          <div className="control-group">
-            <span className="control-label">
-              <GraduationCap size={22} />
-              年级：
-            </span>
-            <div className="chip-group" aria-label="年级选择">
-              {gradeOptions.map((option) => (
-                <button
-                  className={`chip${grade === option ? ' is-active' : ''}`}
-                  key={option}
-                  onClick={() => setGrade(option)}
-                  type="button"
-                >
-                  {option}
-                </button>
-              ))}
-            </div>
-          </div>
         </div>
         {error ? <p className="inline-error">{error}</p> : null}
         {copyStatus ? <p className="inline-success">{copyStatus}</p> : null}
       </section>
 
-      <div className="result-actions material-actions">
-        <button className="secondary-button" disabled={!result} onClick={handleCopy} type="button">
+      <section className="local-material-library glass-card" ref={libraryRef}>
+        <div className="local-material-library__header">
+          <div>
+            <div className="card-title">
+              <span className="small-title-icon is-purple">
+                <BookOpenCheck size={19} />
+              </span>
+              本地素材库
+            </div>
+            <p>无需 API，也可以按主题查找、收藏和复制常用作文素材。</p>
+          </div>
+          <button className={`secondary-button${showFavorites ? ' is-active' : ''}`} onClick={() => setShowFavorites((value) => !value)} type="button">
+            <Star fill={showFavorites ? 'currentColor' : 'none'} size={18} />
+            收藏夹 {favorites.length}
+          </button>
+        </div>
+
+        <div className="local-material-toolbar">
+          <div className="chip-group" aria-label="本地素材主题选择">
+            {materialLibrary.map((item) => (
+              <button
+                className={`chip${libraryTopicId === item.id && !showFavorites ? ' is-active' : ''}`}
+                key={item.id}
+                onClick={() => {
+                  setLibraryTopicId(item.id)
+                  setShowFavorites(false)
+                }}
+                type="button"
+              >
+                {item.title}
+              </button>
+            ))}
+          </div>
+          <label className="local-material-search">
+            <Search size={17} />
+            <input
+              aria-label="搜索本地素材"
+              onChange={(event) => setLibrarySearch(event.target.value)}
+              placeholder="搜索关键词、人物、角度"
+              value={librarySearch}
+            />
+          </label>
+        </div>
+
+        <div className="local-material-library__summary">
+          <span>{showFavorites ? '我的收藏' : selectedLibraryTopic.title}</span>
+          <p>{showFavorites ? '这里会保留你收藏过的单条素材。' : selectedLibraryTopic.description}</p>
+        </div>
+
+        {visibleLibraryItems.length > 0 ? (
+          <div className="local-material-sections">
+            {(['人物事例', '时评热点', '名言警句', '适用角度', '使用示范'] as const).map((type) => (
+                <LocalMaterialGroup
+                items={visibleLibraryItems.filter((item) => item.type === type)}
+                key={type}
+                onCopy={handleCopyLocalMaterial}
+                onFavoriteStatus={(message) => {
+                  setCopyStatus(message)
+                  setFavorites(getFavorites())
+                }}
+                title={type}
+                type={type}
+              />
+            ))}
+          </div>
+        ) : (
+          <p className="structured-empty">{showFavorites ? '暂无收藏素材' : '没有找到匹配素材'}</p>
+        )}
+      </section>
+
+      <div className="result-actions material-actions app-action-bar">
+        <button className="secondary-button" disabled={!resultText} onClick={handleCopy} type="button">
           <ClipboardCopy size={18} />
           复制素材
         </button>
-        <button className="secondary-button" type="button">
+        <button className="secondary-button" onClick={handleShowFavorites} type="button">
           <Star size={18} />
           收藏素材
         </button>
-        <button className="secondary-button" disabled={!result} onClick={handleExport} type="button">
-          <Download size={18} />
-          导出结果
-        </button>
+        <ExportMenu disabled={!resultText} label="导出结果" onExport={handleExport} />
       </div>
 
-      {result ? (
+      {resultText ? (
+        <RefineActionBar
+          actions={materialRefineActionItems}
+          activeAction={refiningAction}
+          disabled={isBusy}
+          onAction={handleRefine}
+        />
+      ) : null}
+
+      {structuredResult ? (
+        <MaterialRecommendCards
+          onFavoriteStatus={(message) => {
+            setCopyStatus(message)
+            setFavorites(getFavorites())
+          }}
+          result={structuredResult}
+        />
+      ) : resultText ? (
         <article className="ai-result-card glass-card">
           <div className="card-title">
             <span className="small-title-icon is-teal">
@@ -217,84 +513,14 @@ function MaterialRecommendPage() {
             </span>
             AI 素材推荐结果
           </div>
+          {isTextFallback ? <p className="inline-success">{fallbackNotice}</p> : null}
           <div className="markdown-body">
-            <ReactMarkdown>{result}</ReactMarkdown>
+            <ReactMarkdown>{resultText}</ReactMarkdown>
           </div>
         </article>
-      ) : (
-        <section className="material-results-grid" aria-label="素材推荐结果">
-          <article className="material-person-card glass-card">
-            <div className="card-title">
-              <span className="small-title-icon is-blue">
-                <UserRoundCheck size={19} />
-              </span>
-              人物事例
-            </div>
-            <div className="material-item-list">
-              {personMaterials.map(([name, text]) => (
-                <div className="material-item is-person" key={name}>
-                  <span>{name}</span>
-                  <p>{text}</p>
-                </div>
-              ))}
-            </div>
-          </article>
+      ) : null}
 
-          <article className="material-news-card glass-card">
-            <div className="card-title">
-              <span className="small-title-icon is-teal">
-                <Newspaper size={19} />
-              </span>
-              时评热点
-            </div>
-            <div className="material-item-list">
-              {newsMaterials.map(([name, text]) => (
-                <div className="material-item is-news" key={name}>
-                  <span>{name}</span>
-                  <p>{text}</p>
-                </div>
-              ))}
-            </div>
-          </article>
-
-          <article className="material-quote-card glass-card">
-            <div className="card-title">
-              <span className="small-title-icon is-purple">
-                <Quote size={19} />
-              </span>
-              名言警句
-            </div>
-            <ol className="quote-list">
-              {quotes.map((quote) => (
-                <li key={quote}>{quote}</li>
-              ))}
-            </ol>
-          </article>
-
-          <article className="material-demo-card glass-card">
-            <div className="material-demo-copy">
-              <div className="card-title">
-                <span className="small-title-icon is-orange">
-                  <Sparkles size={19} />
-                </span>
-                素材使用示范
-              </div>
-              <p>
-                <mark>责任</mark>
-                并不是停留在口号中的宏大词语，而是在关键时刻的主动选择。
-                <mark>林则徐</mark>
-                面对民族危机，挺身而出、虎门销烟，以实际行动诠释了“苟利国家生死以”的担当精神。
-                对于<mark>新时代青年</mark>而言，责任同样意味着把个人理想融入国家发展，在时代需要的地方发光发热。
-              </p>
-            </div>
-            <div className="material-demo-aside" aria-hidden="true">
-              <span className="library-card library-card--blue" />
-              <span className="library-card library-card--teal" />
-              <span className="library-card library-card--orange" />
-            </div>
-          </article>
-        </section>
-      )}
+      {studentLearningMode && resultText ? <ThinkingPromptCard prompts={structuredResult?.thinkingPrompts} /> : null}
     </div>
   )
 }

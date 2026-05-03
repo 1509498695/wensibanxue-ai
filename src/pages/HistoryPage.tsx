@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import ReactMarkdown from 'react-markdown'
 import type { LucideIcon } from 'lucide-react'
 import {
   ClipboardCopy,
@@ -6,10 +7,12 @@ import {
   FileSearch,
   FolderOpen,
   Lightbulb,
+  ListChecks,
   NotebookText,
   Search,
   Sparkles,
   Trash2,
+  X,
 } from 'lucide-react'
 import type { HistoryItem, HistoryItemType } from '../services/historyService'
 import { clearHistory, deleteHistoryItem, getHistoryItems } from '../services/historyService'
@@ -28,6 +31,7 @@ const filterOptions: Array<{ label: string; value: HistoryItemType | 'all' }> = 
   { label: '论点生成', value: 'argument' },
   { label: '素材推荐', value: 'material' },
   { label: '作文诊断', value: 'diagnosis' },
+  { label: '五步写作', value: 'workflow' },
 ]
 
 const typeMeta: Record<HistoryItemType, HistoryTypeMeta> = {
@@ -35,6 +39,7 @@ const typeMeta: Record<HistoryItemType, HistoryTypeMeta> = {
   argument: { label: '论点生成', tone: 'purple', icon: Lightbulb },
   material: { label: '素材推荐', tone: 'teal', icon: FolderOpen },
   diagnosis: { label: '作文诊断', tone: 'orange', icon: NotebookText },
+  workflow: { label: '五步写作', tone: 'blue', icon: ListChecks },
 }
 
 function stripMarkdown(content: string) {
@@ -72,10 +77,34 @@ function formatHistoryTime(createdAt: string) {
   return date.toLocaleDateString('zh-CN', { month: '2-digit', day: '2-digit' }).replace('/', '-')
 }
 
+async function copyText(text: string) {
+  if (navigator.clipboard?.writeText) {
+    await navigator.clipboard.writeText(text)
+    return
+  }
+
+  const textarea = document.createElement('textarea')
+
+  textarea.value = text
+  textarea.setAttribute('readonly', 'true')
+  textarea.style.position = 'fixed'
+  textarea.style.left = '-9999px'
+  document.body.appendChild(textarea)
+  textarea.select()
+
+  try {
+    document.execCommand('copy')
+  } finally {
+    textarea.remove()
+  }
+}
+
 function HistoryPage() {
   const [records, setRecords] = useState<HistoryItem[]>(() => getHistoryItems())
   const [keyword, setKeyword] = useState('')
   const [activeFilter, setActiveFilter] = useState<HistoryItemType | 'all'>('all')
+  const [selectedRecord, setSelectedRecord] = useState<HistoryItem | null>(null)
+  const [copyStatus, setCopyStatus] = useState('')
 
   const filteredRecords = useMemo(() => {
     const normalizedKeyword = keyword.trim().toLowerCase()
@@ -90,16 +119,28 @@ function HistoryPage() {
   }, [activeFilter, keyword, records])
 
   const handleCopy = async (record: HistoryItem) => {
-    await navigator.clipboard.writeText(record.output)
+    try {
+      await copyText(record.output)
+      setCopyStatus(`已复制「${record.title}」`)
+    } catch {
+      setCopyStatus('复制失败，请打开查看后手动选择文本复制')
+    }
   }
 
   const handleDelete = (id: string) => {
     setRecords(deleteHistoryItem(id))
+    setCopyStatus('')
+
+    if (selectedRecord?.id === id) {
+      setSelectedRecord(null)
+    }
   }
 
   const handleClearHistory = () => {
     clearHistory()
     setRecords([])
+    setSelectedRecord(null)
+    setCopyStatus('')
   }
 
   return (
@@ -107,7 +148,7 @@ function HistoryPage() {
       <header className="history-header">
         <div>
           <h1>历史记录</h1>
-          <p>查看最近生成的审题、论点、素材和作文诊断结果。</p>
+          <p>查看最近生成的审题、论点、素材、作文诊断和五步写作结果。</p>
         </div>
 
         <button
@@ -145,6 +186,7 @@ function HistoryPage() {
           ))}
         </div>
       </section>
+      {copyStatus ? <p className="inline-success history-status">{copyStatus}</p> : null}
 
       {filteredRecords.length > 0 ? (
         <section className="history-list" aria-label="历史记录列表">
@@ -167,8 +209,9 @@ function HistoryPage() {
                 <div className="history-record-meta">
                   <span className="history-record-time">{formatHistoryTime(record.createdAt)}</span>
                   <span className={`history-feature-badge is-${meta.tone}`}>{meta.label}</span>
+                  {record.mode === 'demo' ? <span className="history-mode-badge">演示</span> : null}
                   <div className="history-record-actions">
-                    <button type="button">
+                    <button onClick={() => setSelectedRecord(record)} type="button">
                       <Eye size={16} />
                       查看
                     </button>
@@ -194,6 +237,56 @@ function HistoryPage() {
           <h2>{records.length === 0 ? '暂无历史记录，开始一次 AI 学习分析吧。' : '未找到匹配记录，换个关键词或筛选条件试试。'}</h2>
         </section>
       )}
+
+      {selectedRecord ? (
+        <div className="history-modal-backdrop" role="presentation" onClick={() => setSelectedRecord(null)}>
+          <section
+            aria-labelledby="history-modal-title"
+            aria-modal="true"
+            className="history-modal glass-card"
+            onClick={(event) => event.stopPropagation()}
+            role="dialog"
+          >
+            <header className="history-modal-header">
+              <div>
+                <span className={`history-feature-badge is-${typeMeta[selectedRecord.type].tone}`}>
+                  {typeMeta[selectedRecord.type].label}
+                </span>
+                {selectedRecord.mode === 'demo' ? <span className="history-mode-badge">演示</span> : null}
+                <h2 id="history-modal-title">{selectedRecord.title}</h2>
+                <p>{formatHistoryTime(selectedRecord.createdAt)}</p>
+              </div>
+              <button aria-label="关闭历史详情" className="history-modal-close" onClick={() => setSelectedRecord(null)} type="button">
+                <X size={19} />
+              </button>
+            </header>
+
+            {selectedRecord.input ? (
+              <section className="history-modal-section">
+                <h3>输入内容</h3>
+                <p>{selectedRecord.input}</p>
+              </section>
+            ) : null}
+
+            <section className="history-modal-section is-output">
+              <h3>生成结果</h3>
+              <div className="markdown-body">
+                <ReactMarkdown>{selectedRecord.output || '暂无数据'}</ReactMarkdown>
+              </div>
+            </section>
+
+            <footer className="history-modal-actions">
+              <button className="secondary-button" onClick={() => handleCopy(selectedRecord)} type="button">
+                <ClipboardCopy size={18} />
+                复制结果
+              </button>
+              <button className="secondary-button" onClick={() => setSelectedRecord(null)} type="button">
+                关闭
+              </button>
+            </footer>
+          </section>
+        </div>
+      ) : null}
     </div>
   )
 }

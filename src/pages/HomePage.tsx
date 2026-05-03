@@ -15,14 +15,16 @@ import {
   WandSparkles,
   Zap,
 } from 'lucide-react'
-import StudyIllustration from '../components/common/StudyIllustration'
+import PageHero from '../components/common/PageHero'
 import type { PageKey } from '../components/layout/navItems'
 import { demoRecentItems } from '../services/demoContent'
 import { getHistoryItems } from '../services/historyService'
 import type { HistoryItemType } from '../services/historyService'
+import { getDemoMode } from '../services/settingsService'
 
 type HomePageProps = {
   onNavigate: (page: PageKey) => void
+  onOpenOnboarding: () => void
 }
 
 const abilities = [
@@ -79,6 +81,7 @@ const historyTypeMeta: Record<HistoryItemType, { tag: string; tone: 'blue' | 'pu
   argument: { tag: '论点生成', tone: 'purple' },
   material: { tag: '素材推荐', tone: 'teal' },
   diagnosis: { tag: '作文诊断', tone: 'orange' },
+  workflow: { tag: '五步写作', tone: 'blue' },
 }
 
 const adviceItems = [
@@ -118,7 +121,8 @@ function formatRecentTime(createdAt: string) {
   return date.toLocaleDateString('zh-CN', { month: '2-digit', day: '2-digit' }).replace('/', '-')
 }
 
-function HomePage({ onNavigate }: HomePageProps) {
+function HomePage({ onNavigate, onOpenOnboarding }: HomePageProps) {
+  const demoMode = getDemoMode()
   const recentItems = useMemo(() => {
     const historyItems = getHistoryItems().slice(0, 4)
 
@@ -135,26 +139,31 @@ function HomePage({ onNavigate }: HomePageProps) {
 
   return (
     <div className="home-page">
-      <section className="home-hero">
-        <div className="home-hero__copy">
-          <h1 className="hero-title">
+      <PageHero
+        className="home-hero"
+        icon={<Sparkles size={34} strokeWidth={2.1} />}
+        illustrationSize="hero"
+        subtitle="专注议论文写作，助你审题立意更精准，论点更深刻，素材更丰富，作文更出色！"
+        title={
+          <>
             高中语文 <span className="hero-ai">AI</span> 学习助手
-          </h1>
-          <p className="hero-subtitle">
-            专注议论文写作，助你审题立意更精准，论点更深刻，素材更丰富，作文更出色！
-          </p>
-          <div className="hero-abilities" aria-label="核心能力">
-            {abilities.map(({ label, icon: Icon }) => (
-              <span className="hero-ability" key={label}>
-                <Icon size={22} strokeWidth={2.4} />
-                {label}
-              </span>
-            ))}
-          </div>
+          </>
+        }
+        tone="blue"
+        variant="home"
+      >
+        <span className={`mode-badge home-mode-badge ${demoMode ? 'is-demo' : 'is-api'}`}>
+          {demoMode ? '演示模式' : '真实 API 模式'}
+        </span>
+        <div className="hero-abilities" aria-label="核心能力">
+          {abilities.map(({ label, icon: Icon }) => (
+            <span className="hero-ability" key={label}>
+              <Icon size={22} strokeWidth={2.4} />
+              {label}
+            </span>
+          ))}
         </div>
-
-        <StudyIllustration />
-      </section>
+      </PageHero>
 
       <section className="home-feature-grid" aria-label="核心功能">
         {features.map(({ key, title, description, icon: Icon, tone }) => (
@@ -174,6 +183,31 @@ function HomePage({ onNavigate }: HomePageProps) {
             </span>
           </button>
         ))}
+      </section>
+
+      <section className="workflow-promo-card glass-card">
+        <div>
+          <span className="workflow-promo-eyebrow">Agent 流程推荐</span>
+          <h2>试试五步写作助手</h2>
+          <p>把审题、立意、论点、素材和大纲连成一次完整写作辅导，更适合比赛展示和完整训练。</p>
+        </div>
+        <button className="gradient-button workflow-promo-button" onClick={() => onNavigate('workflow')} type="button">
+          <Rocket size={20} />
+          进入五步写作
+          <ArrowRight size={18} />
+        </button>
+      </section>
+
+      <section className="about-promo-card glass-card">
+        <div>
+          <span className="workflow-promo-eyebrow">比赛答辩入口</span>
+          <h2>查看作品介绍</h2>
+          <p>快速了解产品定位、核心功能、技术架构和教育价值，适合现场展示与答辩说明。</p>
+        </div>
+        <button className="secondary-button about-promo-button" onClick={() => onNavigate('about')} type="button">
+          查看作品介绍
+          <ArrowRight size={18} />
+        </button>
       </section>
 
       <section className="home-bottom-grid">
@@ -198,6 +232,10 @@ function HomePage({ onNavigate }: HomePageProps) {
             ))}
           </div>
           <p className="handwriting-copy">让写作更简单，让表达更出色！</p>
+          <button className="secondary-button onboarding-replay-button" onClick={onOpenOnboarding} type="button">
+            <RefreshCw size={18} />
+            重新查看新手引导
+          </button>
         </div>
 
         <div className="recent-card glass-card">

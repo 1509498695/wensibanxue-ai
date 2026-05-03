@@ -5,6 +5,7 @@ import {
   Download,
   Eye,
   EyeOff,
+  GraduationCap,
   History,
   Home,
   KeyRound,
@@ -14,70 +15,38 @@ import {
   Server,
   Settings,
   SlidersHorizontal,
+  Sparkles,
   Trash2,
 } from 'lucide-react'
+import { CUSTOM_PROVIDER_KEY, getProviderPreset, providerPresets, type ProviderKey } from '../data/providerPresets'
 import { clearHistory, getHistoryItems } from '../services/historyService'
 import { chatCompletionWithConfig } from '../services/llmClient'
+import {
+  clearAppSettings,
+  defaultAppSettings,
+  hydrateAppSettings,
+  loadAppSettings,
+  saveAppSettings,
+  type AppSettings,
+} from '../services/settingsService'
 import type { ChatMessage, LLMConfig } from '../types/llm'
 import { createExportFileName, downloadTextFile } from '../utils/exportText'
 
-type SettingsConfig = {
-  apiBaseUrl: string
-  apiKey: string
-  modelName: string
-  temperature: string
-  maxTokens: string
-  defaultGrade: string
-  defaultDifficulty: string
-  saveHistory: boolean
-  showHomeOnLaunch: boolean
-}
-
-const STORAGE_KEY = 'wensibanxue-ai:settings'
-const gradeOptions = ['高一', '高二', '高三']
 const difficultyOptions = ['基础', '提升', '高分']
 
-const defaultSettings: SettingsConfig = {
-  apiBaseUrl: 'https://api.openai.com/v1',
-  apiKey: '',
-  modelName: 'gpt-4o-mini',
-  temperature: '0.7',
-  maxTokens: '2000',
-  defaultGrade: '高二',
-  defaultDifficulty: '提升',
-  saveHistory: true,
-  showHomeOnLaunch: true,
-}
-
-function loadSettings(): SettingsConfig {
-  if (typeof window === 'undefined') {
-    return defaultSettings
-  }
-
-  try {
-    const stored = window.localStorage.getItem(STORAGE_KEY)
-
-    if (!stored) {
-      return defaultSettings
-    }
-
-    return {
-      ...defaultSettings,
-      ...JSON.parse(stored),
-    }
-  } catch {
-    return defaultSettings
-  }
-}
-
 function SettingsPage() {
-  const [config, setConfig] = useState<SettingsConfig>(() => loadSettings())
+  const [config, setConfig] = useState<AppSettings>(() => loadAppSettings())
   const [showApiKey, setShowApiKey] = useState(false)
   const [isTestingConnection, setIsTestingConnection] = useState(false)
   const [toast, setToast] = useState('')
   const toastTimerRef = useRef<number | null>(null)
+  const activeProvider = getProviderPreset(config.provider)
+  const isCustomProvider = config.provider === CUSTOM_PROVIDER_KEY
+  const modeLabel = config.demoMode ? '演示模式' : '真实 API 模式'
 
   useEffect(() => {
+    void hydrateAppSettings().then((settings) => setConfig(settings))
+
     return () => {
       if (toastTimerRef.current) {
         window.clearTimeout(toastTimerRef.current)
@@ -85,10 +54,75 @@ function SettingsPage() {
     }
   }, [])
 
-  const updateConfig = <K extends keyof SettingsConfig>(key: K, value: SettingsConfig[K]) => {
+  const updateConfig = <K extends keyof AppSettings>(key: K, value: AppSettings[K]) => {
     setConfig((current) => ({
       ...current,
       [key]: value,
+    }))
+  }
+
+  const handleProviderChange = (provider: ProviderKey) => {
+    setConfig((current) => {
+      const apiKeysByProvider = {
+        ...current.apiKeysByProvider,
+        [current.provider]: current.apiKey,
+      }
+      const currentCustomValues =
+        current.provider === CUSTOM_PROVIDER_KEY
+          ? {
+              customApiBaseUrl: current.apiBaseUrl,
+              customModel: current.model,
+            }
+          : {
+              customApiBaseUrl: current.customApiBaseUrl,
+              customModel: current.customModel,
+            }
+      const providerPreset = getProviderPreset(provider)
+
+      if (provider === CUSTOM_PROVIDER_KEY) {
+        return {
+          ...current,
+          ...currentCustomValues,
+          apiKeysByProvider,
+          provider,
+          apiBaseUrl: currentCustomValues.customApiBaseUrl,
+          apiKey: apiKeysByProvider[provider] || '',
+          model: currentCustomValues.customModel,
+        }
+      }
+
+      return {
+        ...current,
+        ...currentCustomValues,
+        apiKeysByProvider,
+        provider,
+        apiBaseUrl: providerPreset.apiBaseUrl,
+        apiKey: apiKeysByProvider[provider] || '',
+        model: providerPreset.modelExamples[0] || current.model,
+      }
+    })
+  }
+
+  const handleApiKeyChange = (apiKey: string) => {
+    setConfig((current) => ({
+      ...current,
+      apiKey,
+    }))
+  }
+
+  const handleApiBaseUrlChange = (apiBaseUrl: string) => {
+    setConfig((current) => ({
+      ...current,
+      apiBaseUrl,
+      customApiBaseUrl: current.provider === CUSTOM_PROVIDER_KEY ? apiBaseUrl : current.customApiBaseUrl,
+    }))
+  }
+
+  const handleModelChange = (model: string) => {
+    setConfig((current) => ({
+      ...current,
+      model,
+      customModel: current.provider === CUSTOM_PROVIDER_KEY ? model : current.customModel,
     }))
   }
 
@@ -104,8 +138,8 @@ function SettingsPage() {
     }, 1800)
   }
 
-  const handleSave = () => {
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(config))
+  const handleSave = async () => {
+    await saveAppSettings(config)
     setShowApiKey(false)
     showToast('配置已保存')
   }
@@ -116,9 +150,9 @@ function SettingsPage() {
       { role: 'user', content: '请回复：连接成功' },
     ]
     const testConfig: LLMConfig = {
-      apiBaseUrl: config.apiBaseUrl,
+      apiBaseUrl: config.apiBaseUrl.trim().replace(/\/+$/, ''),
       apiKey: config.apiKey,
-      model: config.modelName || 'gpt-4o-mini',
+      model: config.model || 'gpt-4o-mini',
       temperature: Number(config.temperature) || 0.7,
       maxTokens: Number(config.maxTokens) || 2000,
     }
@@ -127,7 +161,7 @@ function SettingsPage() {
 
     try {
       await chatCompletionWithConfig(testMessages, testConfig)
-      showToast('连接成功')
+      showToast(`连接成功：${activeProvider.name} / ${testConfig.model}`)
     } catch (caughtError) {
       showToast(caughtError instanceof Error ? caughtError.message : '连接失败，请检查 API 配置')
     } finally {
@@ -135,9 +169,9 @@ function SettingsPage() {
     }
   }
 
-  const handleClear = () => {
-    window.localStorage.removeItem(STORAGE_KEY)
-    setConfig(defaultSettings)
+  const handleClear = async () => {
+    await clearAppSettings()
+    setConfig(defaultAppSettings)
     setShowApiKey(false)
     showToast('配置已清空')
   }
@@ -183,12 +217,31 @@ function SettingsPage() {
               <Server size={19} />
             </span>
             API 配置
+            <span className={`mode-badge ${config.demoMode ? 'is-demo' : 'is-api'}`}>{modeLabel}</span>
           </div>
           <p className="settings-api-hint">
-            请填写 OpenAI 兼容接口配置，支持 DeepSeek、通义千问、OpenAI 等兼容 Chat Completions 的服务。
+            本应用支持 OpenAI 兼容 Chat Completions 接口。请确认你的服务商支持 /chat/completions 格式。
           </p>
 
           <div className="settings-form-grid">
+            <label className="settings-field is-wide">
+              <span>
+                <Server size={16} />
+                服务商
+              </span>
+              <select
+                className="settings-input"
+                onChange={(event) => handleProviderChange(event.target.value as ProviderKey)}
+                value={config.provider}
+              >
+                {providerPresets.map((provider) => (
+                  <option key={provider.key} value={provider.key}>
+                    {provider.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+
             <label className="settings-field is-wide">
               <span>
                 <Server size={16} />
@@ -196,7 +249,8 @@ function SettingsPage() {
               </span>
               <input
                 className="settings-input"
-                onChange={(event) => updateConfig('apiBaseUrl', event.target.value)}
+                onChange={(event) => handleApiBaseUrlChange(event.target.value)}
+                readOnly={!isCustomProvider}
                 value={config.apiBaseUrl}
               />
             </label>
@@ -209,7 +263,7 @@ function SettingsPage() {
               <div className="password-field">
                 <input
                   className="settings-input"
-                  onChange={(event) => updateConfig('apiKey', event.target.value)}
+                  onChange={(event) => handleApiKeyChange(event.target.value)}
                   placeholder="请输入 API Key"
                   type={showApiKey ? 'text' : 'password'}
                   value={config.apiKey}
@@ -229,11 +283,17 @@ function SettingsPage() {
                 <Bot size={16} />
                 模型名称
               </span>
-              <input
-                className="settings-input"
-                onChange={(event) => updateConfig('modelName', event.target.value)}
-                value={config.modelName}
-              />
+              {isCustomProvider ? (
+                <input className="settings-input" onChange={(event) => handleModelChange(event.target.value)} value={config.model} />
+              ) : (
+                <select className="settings-input" onChange={(event) => handleModelChange(event.target.value)} value={config.model}>
+                  {activeProvider.modelExamples.map((model) => (
+                    <option key={model} value={model}>
+                      {model}
+                    </option>
+                  ))}
+                </select>
+              )}
             </label>
 
             <label className="settings-field">
@@ -268,6 +328,8 @@ function SettingsPage() {
             </label>
           </div>
 
+          {activeProvider.docsHint ? <p className="settings-provider-hint">{activeProvider.docsHint}</p> : null}
+
           <div className="settings-actions">
             <button className="gradient-button" onClick={handleSave} type="button">
               <Save size={18} />
@@ -300,22 +362,6 @@ function SettingsPage() {
 
             <div className="preference-block">
               <div className="preference-row is-stacked">
-                <span>默认年级</span>
-                <div className="chip-group">
-                  {gradeOptions.map((grade) => (
-                    <button
-                      className={`chip${config.defaultGrade === grade ? ' is-active' : ''}`}
-                      key={grade}
-                      onClick={() => updateConfig('defaultGrade', grade)}
-                      type="button"
-                    >
-                      {grade}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div className="preference-row is-stacked">
                 <span>默认难度</span>
                 <div className="chip-group">
                   {difficultyOptions.map((difficulty) => (
@@ -329,6 +375,62 @@ function SettingsPage() {
                     </button>
                   ))}
                 </div>
+              </div>
+
+              <div className="preference-row">
+                <span>
+                  <Sparkles size={17} />
+                  演示模式
+                </span>
+                <button
+                  aria-checked={config.demoMode}
+                  className={`switch${config.demoMode ? ' is-on' : ''}`}
+                  onClick={() => updateConfig('demoMode', !config.demoMode)}
+                  role="switch"
+                  type="button"
+                >
+                  <span />
+                </button>
+              </div>
+
+              <p className="settings-preference-hint">
+                演示模式适合比赛展示或无网络环境，关闭后将使用真实大模型 API。
+              </p>
+
+              <div className="preference-row">
+                <span>
+                  <Settings size={17} />
+                  自动修复模型返回格式
+                </span>
+                <button
+                  aria-checked={config.autoRepairJson}
+                  className={`switch${config.autoRepairJson ? ' is-on' : ''}`}
+                  onClick={() => updateConfig('autoRepairJson', !config.autoRepairJson)}
+                  role="switch"
+                  type="button"
+                >
+                  <span />
+                </button>
+              </div>
+
+              <p className="settings-preference-hint">
+                真实 API 模式下，如模型返回的 JSON 不规范，会额外尝试修复一次。
+              </p>
+
+              <div className="preference-row">
+                <span>
+                  <GraduationCap size={17} />
+                  学生学习模式
+                </span>
+                <button
+                  aria-checked={config.studentLearningMode}
+                  className={`switch${config.studentLearningMode ? ' is-on' : ''}`}
+                  onClick={() => updateConfig('studentLearningMode', !config.studentLearningMode)}
+                  role="switch"
+                  type="button"
+                >
+                  <span />
+                </button>
               </div>
 
               <div className="preference-row">

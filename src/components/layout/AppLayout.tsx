@@ -11,13 +11,15 @@ type AppLayoutProps = {
 
 function AppLayout({ activePage, children, onPageChange }: AppLayoutProps) {
   return (
-    <main className="app-shell">
+    <div className="app-shell">
       <Sidebar activePage={activePage} onPageChange={onPageChange} />
-      <section className="main-layout">
+      <main className="app-main main-layout">
         <TopBar />
-        <div className="page-content">{children}</div>
-      </section>
-    </main>
+        <div className="page-scroll">
+          <div className="page-container page-content">{children}</div>
+        </div>
+      </main>
+    </div>
   )
 }
 

@@ -1,10 +1,11 @@
 type StudyIllustrationProps = {
   className?: string
+  size?: 'hero' | 'compact'
 }
 
-function StudyIllustration({ className = '' }: StudyIllustrationProps) {
+function StudyIllustration({ className = '', size = 'hero' }: StudyIllustrationProps) {
   return (
-    <div className={`hero-visual ${className}`.trim()} aria-hidden="true">
+    <div className={`hero-visual study-illustration study-illustration--${size} ${className}`.trim()} aria-hidden="true">
       <span className="hero-blob hero-blob--purple" />
       <span className="hero-blob hero-blob--blue" />
       <span className="hero-plant hero-plant--left" />

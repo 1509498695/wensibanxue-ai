@@ -1,3 +1,5 @@
+import { formatResultAsText } from './exportFormatter'
+
 type ResultExportOptions = {
   input?: string
   output: string
@@ -7,12 +9,6 @@ type ResultExportOptions = {
 
 function pad(value: number) {
   return value.toString().padStart(2, '0')
-}
-
-function formatDateTime(date = new Date()) {
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(
-    date.getMinutes(),
-  )}`
 }
 
 export function createExportFileName(prefix: string) {
@@ -38,18 +34,5 @@ export function downloadTextFile(fileName: string, content: string) {
 }
 
 export function buildResultExportText({ input, output, title, typeLabel }: ResultExportOptions) {
-  return [
-    `# ${typeLabel}`,
-    '',
-    `标题：${title}`,
-    `导出时间：${formatDateTime()}`,
-    '',
-    input ? '## 输入内容' : '',
-    input || '',
-    input ? '' : '',
-    '## 生成结果',
-    output,
-  ]
-    .filter((line, index, lines) => line !== '' || lines[index - 1] !== '')
-    .join('\n')
+  return formatResultAsText({ input, output, title, typeLabel })
 }

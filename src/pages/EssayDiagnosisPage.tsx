@@ -1,63 +1,61 @@
-import type { CSSProperties } from 'react'
 import { useState } from 'react'
 import ReactMarkdown from 'react-markdown'
 import {
-  AlertTriangle,
   BookOpenCheck,
-  CheckCircle2,
-  ChevronDown,
   ClipboardCopy,
-  Download,
   FileText,
-  Layers3,
   Lightbulb,
-  MessageCircle,
+  ListChecks,
   PenTool,
   Rocket,
-  ShieldCheck,
-  Star,
-  Target,
+  Sparkles,
 } from 'lucide-react'
-import StudyIllustration from '../components/common/StudyIllustration'
+import RefineActionBar, { type RefineActionItem } from '../components/common/RefineActionBar'
+import ExportMenu from '../components/common/ExportMenu'
+import PageHero from '../components/common/PageHero'
+import ThinkingPromptCard from '../components/common/ThinkingPromptCard'
+import { EssayDiagnosisCards } from '../components/results/StructuredResultCards'
 import { getLLMConfig, chatCompletion } from '../services/llmClient'
 import { buildEssayDiagnosisPrompt } from '../services/prompts'
+import { buildDiagnosisRefinePrompt, type DiagnosisRefineAction } from '../services/refinePrompts'
 import { addHistoryItem } from '../services/historyService'
-import { DEMO_MODE_NOTICE, demoEssayDiagnosisResult } from '../services/demoContent'
-import { buildResultExportText, createExportFileName, downloadTextFile } from '../utils/exportText'
+import { parseModelJsonWithRepair } from '../services/jsonRepairService'
+import {
+  API_KEY_REQUIRED_NOTICE,
+  DEMO_MODE_NOTICE,
+  demoEssayDiagnosisStructuredResult,
+  getDemoDiagnosisRefineResult,
+} from '../services/demoContent'
+import { getDemoMode, getStudentLearningMode } from '../services/settingsService'
+import type { EssayDiagnosisResult } from '../types/results'
+import { exportResultFile } from '../utils/exportFile'
+import type { ResultExportFormat } from '../utils/exportFormatter'
+import { formatEssayDiagnosisResult } from '../utils/resultText'
 
 const defaultEssayContent = `成长是一场漫长的旅行。在这条路上，我们会遇到许多风景，也会遇到各种困难和挑战。
 记得那次数学考试，我因为粗心大意而失利，心情非常低落。老师并没有批评我，而是耐心地帮我分析错题，告诉我学习要细心、要坚持。
 从那以后，我学会了反思和总结，也更加努力。成长让我明白，只有经历挫折，才能变得更强大。
 未来的路还很长，我会带着勇气和信心，继续前行，成为更好的自己。`
 
-const dimensionScores = [
-  { label: '审题立意', value: 80, icon: Target, tone: 'blue' },
-  { label: '结构层次', value: 85, icon: Layers3, tone: 'purple' },
-  { label: '论证逻辑', value: 78, icon: ShieldCheck, tone: 'teal' },
-  { label: '素材运用', value: 76, icon: BookOpenCheck, tone: 'orange' },
-  { label: '语言表达', value: 86, icon: MessageCircle, tone: 'blue' },
-]
-
-const issueItems = [
-  ['论证不够深入', '文章整体较为平实，缺乏深入的分析与思考。'],
-  ['素材运用单一', '事例较为单一，未能充分支撑中心论点。'],
-  ['语言表达平淡', '语言表达较为平淡，缺乏文采和感染力。'],
-]
-
-const suggestionItems = [
-  '深入挖掘材料，结合个人感悟，增强文章的思辨性。',
-  '丰富素材，适当引用名人事例或名言，增强说服力。',
-  '优化语言表达，运用修辞手法，提升文章的文采。',
-  '注意段落之间的过渡，使文章结构更加紧凑。',
+const fallbackNotice = '模型返回格式不完全规范，已使用文本模式展示。'
+const diagnosisRefineActionItems: Array<RefineActionItem<DiagnosisRefineAction>> = [
+  { id: 'polishLanguage', label: '优化语言', Icon: PenTool },
+  { id: 'strengthenLogic', label: '增强论证', Icon: Sparkles },
+  { id: 'addMaterials', label: '补充素材', Icon: BookOpenCheck },
+  { id: 'generatePractice', label: '生成练习建议', Icon: ListChecks },
 ]
 
 function EssayDiagnosisPage() {
   const [essayContent, setEssayContent] = useState(defaultEssayContent)
-  const [grade] = useState('高二')
-  const [result, setResult] = useState('')
+  const [resultText, setResultText] = useState('')
+  const [structuredResult, setStructuredResult] = useState<EssayDiagnosisResult | null>(null)
+  const [isTextFallback, setIsTextFallback] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
+  const [refiningAction, setRefiningAction] = useState<DiagnosisRefineAction | null>(null)
   const [error, setError] = useState('')
   const [copyStatus, setCopyStatus] = useState('')
+  const isBusy = isLoading || refiningAction !== null
+  const studentLearningMode = getStudentLearningMode()
 
   const handleGenerate = async () => {
     const trimmedEssay = essayContent.trim()
@@ -70,22 +68,47 @@ function EssayDiagnosisPage() {
     setIsLoading(true)
     setError('')
     setCopyStatus('')
+    setIsTextFallback(false)
 
-    if (!getLLMConfig().apiKey) {
-      setResult(demoEssayDiagnosisResult)
+    if (getDemoMode()) {
+      const output = formatEssayDiagnosisResult(demoEssayDiagnosisStructuredResult)
+
+      setStructuredResult(demoEssayDiagnosisStructuredResult)
+      setResultText(output)
+      addHistoryItem({
+        type: 'diagnosis',
+        mode: 'demo',
+        title: trimmedEssay.replace(/\s+/g, ' ').slice(0, 24),
+        input: trimmedEssay,
+        output,
+      })
       setCopyStatus(DEMO_MODE_NOTICE)
       setIsLoading(false)
       return
     }
 
+    if (!getLLMConfig().apiKey) {
+      setError(API_KEY_REQUIRED_NOTICE)
+      setIsLoading(false)
+      return
+    }
+
     try {
-      const content = await chatCompletion(buildEssayDiagnosisPrompt(trimmedEssay, { grade }))
-      setResult(content)
+      const content = await chatCompletion(buildEssayDiagnosisPrompt(trimmedEssay))
+      const parseResult = await parseModelJsonWithRepair<EssayDiagnosisResult>(content)
+      const parsedResult = parseResult.result
+      const output = parsedResult ? formatEssayDiagnosisResult(parsedResult) : content
+
+      setStructuredResult(parsedResult)
+      setResultText(output)
+      setIsTextFallback(!parsedResult)
+      setCopyStatus(parseResult.repaired ? '模型返回格式已自动修复。' : parsedResult ? '' : fallbackNotice)
       addHistoryItem({
         type: 'diagnosis',
+        mode: 'api',
         title: trimmedEssay.replace(/\s+/g, ' ').slice(0, 24),
         input: trimmedEssay,
-        output: content,
+        output,
       })
     } catch (caughtError) {
       setError(caughtError instanceof Error ? caughtError.message : '生成失败，请稍后重试')
@@ -94,35 +117,104 @@ function EssayDiagnosisPage() {
     }
   }
 
-  const handleCopy = async () => {
-    if (!result) {
+  const handleRefine = async (action: DiagnosisRefineAction) => {
+    const trimmedEssay = essayContent.trim()
+    const actionLabel = diagnosisRefineActionItems.find((item) => item.id === action)?.label || '二次优化'
+
+    if (!trimmedEssay || !resultText) {
+      setError('请先生成结果后再优化')
+      return
+    }
+
+    setRefiningAction(action)
+    setError('')
+    setCopyStatus('')
+
+    if (getDemoMode()) {
+      const demoResult = getDemoDiagnosisRefineResult(action)
+      const output = formatEssayDiagnosisResult(demoResult)
+
+      setStructuredResult(demoResult)
+      setResultText(output)
+      setIsTextFallback(false)
+      addHistoryItem({
+        type: 'diagnosis',
+        mode: 'demo',
+        title: `${trimmedEssay.replace(/\s+/g, ' ').slice(0, 18)} · ${actionLabel}`,
+        input: trimmedEssay,
+        output,
+      })
+      setCopyStatus(`${DEMO_MODE_NOTICE} 优化完成。`)
+      setRefiningAction(null)
+      return
+    }
+
+    if (!getLLMConfig().apiKey) {
+      setError(API_KEY_REQUIRED_NOTICE)
+      setRefiningAction(null)
       return
     }
 
     try {
-      await navigator.clipboard.writeText(result)
+      const content = await chatCompletion(
+        buildDiagnosisRefinePrompt({
+          originalInput: trimmedEssay,
+          currentResult: structuredResult,
+          currentText: resultText,
+          action,
+        }),
+      )
+      const parseResult = await parseModelJsonWithRepair<EssayDiagnosisResult>(content)
+      const parsedResult = parseResult.result
+      const output = parsedResult ? formatEssayDiagnosisResult(parsedResult) : content
+
+      setStructuredResult(parsedResult)
+      setResultText(output)
+      setIsTextFallback(!parsedResult)
+      setCopyStatus(parseResult.repaired ? '模型返回格式已自动修复。' : parsedResult ? '优化完成' : fallbackNotice)
+      addHistoryItem({
+        type: 'diagnosis',
+        mode: 'api',
+        title: `${trimmedEssay.replace(/\s+/g, ' ').slice(0, 18)} · ${actionLabel}`,
+        input: trimmedEssay,
+        output,
+      })
+    } catch (caughtError) {
+      setError(caughtError instanceof Error ? caughtError.message : '优化失败，请稍后重试')
+    } finally {
+      setRefiningAction(null)
+    }
+  }
+
+  const handleCopy = async () => {
+    if (!resultText) {
+      return
+    }
+
+    try {
+      await navigator.clipboard.writeText(resultText)
       setCopyStatus('已复制诊断报告')
     } catch {
       setError('复制失败，请手动复制')
     }
   }
 
-  const handleExport = () => {
-    if (!result) {
+  const handleExport = async (format: ResultExportFormat) => {
+    if (!resultText) {
       return
     }
 
     try {
-      downloadTextFile(
-        createExportFileName('作文诊断报告'),
-        buildResultExportText({
+      const result = await exportResultFile(format, '作文诊断报告', {
           typeLabel: '作文诊断助手',
           title: essayContent.trim().replace(/\s+/g, ' ').slice(0, 24) || '作文诊断报告',
           input: essayContent.trim(),
-          output: result,
-        }),
-      )
-      setCopyStatus('已导出 txt 文件')
+          output: resultText,
+        })
+
+      if (!result.canceled) {
+        setCopyStatus('导出成功')
+      }
     } catch {
       setError('导出失败，请稍后重试')
     }
@@ -130,31 +222,16 @@ function EssayDiagnosisPage() {
 
   return (
     <div className="diagnosis-page">
-      <header className="diagnosis-header">
-        <div className="diagnosis-header__copy">
-          <h1>作文诊断助手</h1>
-          <p>智能分析作文的优缺点，提供针对性修改建议，助你写出更高水平的文章！</p>
-        </div>
+      <PageHero
+        className="diagnosis-header"
+        icon={<FileText size={34} strokeWidth={2.1} />}
+        subtitle="智能分析作文的优缺点，提供针对性修改建议，助你写出更高水平的文章！"
+        title="作文诊断助手"
+        tone="orange"
+        variant="diagnosis"
+      />
 
-        <div className="diagnosis-header__actions">
-          <span className="diagnosis-grade-label">年级：</span>
-          <button className="grade-select-button" type="button">
-            {grade}
-            <ChevronDown size={18} />
-          </button>
-          <button
-            className={`gradient-button diagnosis-start-button${isLoading ? ' button-loading' : ''}`}
-            disabled={isLoading}
-            onClick={handleGenerate}
-            type="button"
-          >
-            {isLoading ? <span className="loading-spinner" /> : <Rocket size={20} />}
-            {isLoading ? '诊断中...' : result ? '重新诊断' : '开始诊断'}
-          </button>
-        </div>
-      </header>
-
-      <section className="diagnosis-input-card glass-card">
+      <section className="diagnosis-input-card glass-card app-card app-input-panel">
         <div className="card-title">
           <span className="small-title-icon is-blue">
             <FileText size={19} />
@@ -173,11 +250,33 @@ function EssayDiagnosisPage() {
             清空内容
           </button>
         </div>
+        <div className="app-action-bar diagnosis-start-actions">
+          <button
+            className={`gradient-button diagnosis-start-button${isLoading ? ' button-loading' : ''}`}
+            disabled={isBusy}
+            onClick={handleGenerate}
+            type="button"
+          >
+            {isLoading ? <span className="loading-spinner" /> : <Rocket size={20} />}
+            {isLoading ? '诊断中...' : resultText ? '重新诊断' : '开始诊断'}
+          </button>
+        </div>
         {error ? <p className="inline-error">{error}</p> : null}
         {copyStatus ? <p className="inline-success">{copyStatus}</p> : null}
       </section>
 
-      {result ? (
+      {resultText ? (
+        <RefineActionBar
+          actions={diagnosisRefineActionItems}
+          activeAction={refiningAction}
+          disabled={isBusy}
+          onAction={handleRefine}
+        />
+      ) : null}
+
+      {structuredResult ? (
+        <EssayDiagnosisCards onFavoriteStatus={setCopyStatus} result={structuredResult} />
+      ) : resultText ? (
         <article className="ai-result-card glass-card">
           <div className="card-title">
             <span className="small-title-icon is-orange">
@@ -185,132 +284,24 @@ function EssayDiagnosisPage() {
             </span>
             AI 作文诊断报告
           </div>
+          {isTextFallback ? <p className="inline-success">{fallbackNotice}</p> : null}
           <div className="markdown-body">
-            <ReactMarkdown>{result}</ReactMarkdown>
+            <ReactMarkdown>{resultText}</ReactMarkdown>
           </div>
         </article>
       ) : (
-        <>
-          <section className="diagnosis-results-grid" aria-label="作文诊断结果">
-            <article className="score-overview-card glass-card">
-              <div className="card-title">
-                <span className="small-title-icon is-blue">
-                  <BookOpenCheck size={19} />
-                </span>
-                综合得分
-              </div>
-
-              <div className="score-overview-body">
-                <div className="score-summary">
-                  <div className="diagnosis-score-ring" aria-label="综合得分 82 分">
-                    <strong>82</strong>
-                    <small>/100</small>
-                  </div>
-                  <span className="score-level">良好</span>
-                  <div className="star-rating" aria-label="四星评级">
-                    {Array.from({ length: 5 }).map((_, index) => (
-                      <Star
-                        className={index === 4 ? 'is-muted' : undefined}
-                        fill="currentColor"
-                        key={index}
-                        size={18}
-                      />
-                    ))}
-                  </div>
-                  <p>超过 78% 的同年级学生</p>
-                </div>
-
-                <div className="dimension-list">
-                  <h3>维度评分</h3>
-                  {dimensionScores.map((item) => {
-                    const Icon = item.icon
-
-                    return (
-                      <div className="dimension-row" key={item.label}>
-                        <span className={`dimension-icon is-${item.tone}`}>
-                          <Icon size={15} />
-                        </span>
-                        <span className="dimension-label">{item.label}</span>
-                        <span
-                          className={`progress-bar dimension-progress is-${item.tone}`}
-                          style={{ '--progress-value': `${item.value}%` } as CSSProperties}
-                        />
-                        <strong>{item.value}</strong>
-                      </div>
-                    )
-                  })}
-                </div>
-              </div>
-            </article>
-
-            <article className="issue-card glass-card">
-              <div className="card-title">
-                <span className="small-title-icon is-red">
-                  <AlertTriangle size={19} />
-                </span>
-                主要问题
-              </div>
-              <ol className="issue-list">
-                {issueItems.map(([title, text], index) => (
-                  <li key={title}>
-                    <span>{index + 1}</span>
-                    <div>
-                      <h3>{title}</h3>
-                      <p>{text}</p>
-                    </div>
-                  </li>
-                ))}
-              </ol>
-            </article>
-
-            <article className="suggestion-card glass-card">
-              <div className="card-title">
-                <span className="small-title-icon is-orange">
-                  <Lightbulb size={19} />
-                </span>
-                修改建议
-              </div>
-              <ul className="suggestion-list">
-                {suggestionItems.map((suggestion) => (
-                  <li key={suggestion}>
-                    <CheckCircle2 size={18} />
-                    <span>{suggestion}</span>
-                  </li>
-                ))}
-              </ul>
-            </article>
-          </section>
-
-          <section className="optimized-example-card glass-card">
-            <div className="optimized-example-copy">
-              <div className="card-title">
-                <span className="small-title-icon is-blue">
-                  <PenTool size={19} />
-                </span>
-                优化示例（片段）
-              </div>
-              <p>
-                成长是一场漫长的旅行。在这条路上，我们既会遇见明媚的风景，也会遭遇刺骨的寒风。正是这些经历，塑造了更加坚韧的我们。
-                那次数学考试的失利，像一记警钟，让我清醒地认识到：成功从来不是偶然，细心与坚持才是通往优秀的必经之路。老师的鼓励与指导，如同一束光，照亮了我前行的方向。于是，我开始反思、总结，不断改进学习方法。
-                成长让我明白，挫折不是终点，而是蜕变的起点。未来的路还很长，我将以勇气为帆，以信心为桨，坚定地驶向更好的自己。
-              </p>
-            </div>
-            <StudyIllustration className="diagnosis-illustration" />
-          </section>
-        </>
+        <EssayDiagnosisCards onFavoriteStatus={setCopyStatus} result={demoEssayDiagnosisStructuredResult} />
       )}
 
-      <div className="diagnosis-actions">
-        <button className="secondary-button" disabled={!result} onClick={handleCopy} type="button">
+      <div className="diagnosis-actions app-action-bar">
+        <button className="secondary-button" disabled={!resultText} onClick={handleCopy} type="button">
           <ClipboardCopy size={18} />
           复制报告
         </button>
-        <button className="secondary-button" disabled={!result} onClick={handleExport} type="button">
-          <Download size={18} />
-          导出诊断
-          <ChevronDown size={16} />
-        </button>
+        <ExportMenu disabled={!resultText} label="导出诊断" onExport={handleExport} />
       </div>
+
+      {studentLearningMode && resultText ? <ThinkingPromptCard prompts={structuredResult?.thinkingPrompts} /> : null}
     </div>
   )
 }

@@ -1,6 +1,6 @@
 import type { ChatMessage, LLMConfig, LLMResponse } from '../types/llm'
+import { loadAppSettings } from './settingsService'
 
-const SETTINGS_STORAGE_KEY = 'wensibanxue-ai:settings'
 const DEFAULT_CONFIG: LLMConfig = {
   apiBaseUrl: 'https://api.openai.com/v1',
   apiKey: '',
@@ -8,15 +8,6 @@ const DEFAULT_CONFIG: LLMConfig = {
   temperature: 0.7,
   maxTokens: 2000,
 }
-
-type StoredLLMSettings = Partial<{
-  apiBaseUrl: string
-  apiKey: string
-  model: string
-  modelName: string
-  temperature: string | number
-  maxTokens: string | number
-}>
 
 function normalizeBaseUrl(apiBaseUrl: string) {
   return apiBaseUrl.trim().replace(/\/+$/, '')
@@ -28,31 +19,14 @@ function toNumber(value: string | number | undefined, fallback: number) {
   return Number.isFinite(parsedValue) ? parsedValue : fallback
 }
 
-function readStoredSettings(): StoredLLMSettings {
-  if (typeof window === 'undefined') {
-    return {}
-  }
-
-  try {
-    const stored = window.localStorage.getItem(SETTINGS_STORAGE_KEY)
-
-    if (!stored) {
-      return {}
-    }
-
-    return JSON.parse(stored) as StoredLLMSettings
-  } catch {
-    return {}
-  }
-}
-
 export function getLLMConfig(): LLMConfig {
-  const storedSettings = readStoredSettings()
+  const storedSettings = loadAppSettings()
+  const providerApiKey = storedSettings.apiKeysByProvider?.[storedSettings.provider]
 
   return {
     apiBaseUrl: normalizeBaseUrl(storedSettings.apiBaseUrl || DEFAULT_CONFIG.apiBaseUrl),
-    apiKey: (storedSettings.apiKey || DEFAULT_CONFIG.apiKey).trim(),
-    model: (storedSettings.model || storedSettings.modelName || DEFAULT_CONFIG.model).trim(),
+    apiKey: (storedSettings.apiKey || providerApiKey || DEFAULT_CONFIG.apiKey).trim(),
+    model: (storedSettings.model || DEFAULT_CONFIG.model).trim(),
     temperature: toNumber(storedSettings.temperature, DEFAULT_CONFIG.temperature),
     maxTokens: toNumber(storedSettings.maxTokens, DEFAULT_CONFIG.maxTokens),
   }
