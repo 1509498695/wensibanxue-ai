@@ -36,8 +36,8 @@ const abilities = [
 const features = [
   {
     key: 'idea',
-    title: '审题立意助手',
-    description: '精准分析题目，挖掘核心概念，提供立意方向与写作思路。',
+    title: '升格思辨',
+    description: '基于关键词追问利弊与判断标准，帮助观点更有辨析度。',
     icon: ClipboardCheck,
     tone: 'blue',
   },
@@ -77,7 +77,7 @@ const quickSteps = [
 ]
 
 const historyTypeMeta: Record<HistoryItemType, { tag: string; tone: 'blue' | 'purple' | 'teal' | 'orange' }> = {
-  topic: { tag: '审题立意', tone: 'blue' },
+  topic: { tag: '升格思辨', tone: 'blue' },
   argument: { tag: '论点生成', tone: 'purple' },
   material: { tag: '素材推荐', tone: 'teal' },
   diagnosis: { tag: '作文诊断', tone: 'orange' },
@@ -143,7 +143,7 @@ function HomePage({ onNavigate, onOpenOnboarding }: HomePageProps) {
         className="home-hero"
         icon={<Sparkles size={34} strokeWidth={2.1} />}
         illustrationSize="hero"
-        subtitle="专注议论文写作，助你审题立意更精准，论点更深刻，素材更丰富，作文更出色！"
+        subtitle="专注议论文写作，助你思辨更深入，论点更深刻，素材更丰富，作文更出色！"
         title={
           <>
             高中语文 <span className="hero-ai">AI</span> 学习助手

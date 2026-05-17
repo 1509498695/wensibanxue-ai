@@ -13,12 +13,26 @@ import {
 } from 'lucide-react'
 import RefineActionBar, { type RefineActionItem } from '../components/common/RefineActionBar'
 import ExportMenu from '../components/common/ExportMenu'
+import KeywordFollowUpPanel from '../components/common/KeywordFollowUpPanel'
 import PageHero from '../components/common/PageHero'
 import ThinkingPromptCard from '../components/common/ThinkingPromptCard'
 import { ArgumentGeneratorCards } from '../components/results/StructuredResultCards'
 import { getLLMConfig, chatCompletion } from '../services/llmClient'
 import { buildArgumentGeneratorPrompt } from '../services/prompts'
 import { buildArgumentRefinePrompt, type ArgumentRefineAction } from '../services/refinePrompts'
+import {
+  buildDemoKeywordFollowUpAnswer,
+  buildKeywordFollowUpDraftKey,
+  buildKeywordFollowUpFullQuestion,
+  buildKeywordFollowUpPrompt,
+  createKeywordFollowUpDraft,
+  getKeywordFollowUpQuestion,
+  normalizeKeywordFollowUpDrafts,
+  parseFollowUpKeywords,
+  parseKeywordFollowUpResponse,
+  type KeywordFollowUpQuestionId,
+  upsertKeywordFollowUpDraft,
+} from '../services/keywordFollowUp'
 import { addHistoryItem } from '../services/historyService'
 import { parseModelJsonWithRepair } from '../services/jsonRepairService'
 import {
@@ -31,7 +45,11 @@ import { getDemoMode, getStudentLearningMode } from '../services/settingsService
 import type { ArgumentGeneratorResult } from '../types/results'
 import { exportResultFile } from '../utils/exportFile'
 import type { ResultExportFormat } from '../utils/exportFormatter'
-import { readLastArgumentGeneratorState, writeLastArgumentGeneratorState } from '../utils/lastPageState'
+import {
+  normalizeFollowUpSummaries,
+  readLastArgumentGeneratorState,
+  writeLastArgumentGeneratorState,
+} from '../utils/lastPageState'
 import { formatArgumentGeneratorResult } from '../utils/resultText'
 
 const difficultyOptions = ['基础', '提升', '高分']
@@ -54,12 +72,22 @@ function ArgumentGeneratorPage() {
   )
   const [isTextFallback, setIsTextFallback] = useState(Boolean(initialPageState.isTextFallback))
   const [lastGeneratedAt, setLastGeneratedAt] = useState(initialPageState.lastGeneratedAt || '')
+  const [followUpKeyword, setFollowUpKeyword] = useState(initialPageState.followUpKeyword || '')
+  const [followUpQuestionId, setFollowUpQuestionId] = useState<KeywordFollowUpQuestionId | undefined>(
+    initialPageState.followUpQuestionId,
+  )
+  const [followUpFullQuestion, setFollowUpFullQuestion] = useState(initialPageState.followUpFullQuestion || '')
+  const [followUpAnswer, setFollowUpAnswer] = useState(initialPageState.followUpAnswer || '')
+  const [followUpSummaries, setFollowUpSummaries] = useState(() => normalizeFollowUpSummaries(initialPageState))
+  const [followUpDrafts, setFollowUpDrafts] = useState(() => normalizeKeywordFollowUpDrafts(initialPageState))
+  const [isFollowUpLoading, setIsFollowUpLoading] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [refiningAction, setRefiningAction] = useState<ArgumentRefineAction | null>(null)
   const [error, setError] = useState('')
   const [copyStatus, setCopyStatus] = useState('')
-  const isBusy = isLoading || refiningAction !== null
+  const isBusy = isLoading || refiningAction !== null || isFollowUpLoading
   const studentLearningMode = getStudentLearningMode()
+  const followUpKeywords = structuredResult?.analysis?.keywords || []
 
   useEffect(() => {
     writeLastArgumentGeneratorState({
@@ -69,8 +97,39 @@ function ArgumentGeneratorPage() {
       structuredResult,
       isTextFallback,
       lastGeneratedAt,
+      followUpKeyword,
+      followUpQuestionId,
+      followUpFullQuestion,
+      followUpAnswer,
+      followUpSummaries,
+      followUpDrafts,
     })
-  }, [difficulty, input, isTextFallback, lastGeneratedAt, resultText, structuredResult])
+  }, [
+    difficulty,
+    followUpAnswer,
+    followUpFullQuestion,
+    followUpDrafts,
+    followUpKeyword,
+    followUpQuestionId,
+    followUpSummaries,
+    input,
+    isTextFallback,
+    lastGeneratedAt,
+    resultText,
+    structuredResult,
+  ])
+
+  const clearFollowUp = () => {
+    setFollowUpQuestionId(undefined)
+    setFollowUpFullQuestion('')
+    setFollowUpAnswer('')
+    setFollowUpSummaries([])
+  }
+
+  const handleFollowUpKeywordChange = (keyword: string) => {
+    setFollowUpKeyword(keyword)
+    clearFollowUp()
+  }
 
   const handleGenerate = async () => {
     const trimmedInput = input.trim()
@@ -84,6 +143,8 @@ function ArgumentGeneratorPage() {
     setError('')
     setCopyStatus('')
     setIsTextFallback(false)
+    clearFollowUp()
+    setFollowUpDrafts([])
 
     if (getDemoMode()) {
       const output = formatArgumentGeneratorResult(demoArgumentGeneratorStructuredResult)
@@ -146,6 +207,8 @@ function ArgumentGeneratorPage() {
     setRefiningAction(action)
     setError('')
     setCopyStatus('')
+    clearFollowUp()
+    setFollowUpDrafts([])
 
     if (getDemoMode()) {
       const demoResult = getDemoArgumentRefineResult(action)
@@ -202,6 +265,112 @@ function ArgumentGeneratorPage() {
       setError(caughtError instanceof Error ? caughtError.message : '优化失败，请稍后重试')
     } finally {
       setRefiningAction(null)
+    }
+  }
+
+  const handleKeywordFollowUp = async (questionId: KeywordFollowUpQuestionId, forceRegenerate = false) => {
+    const trimmedInput = input.trim()
+    const keywords = parseFollowUpKeywords(followUpKeyword)
+    const keyword = keywords[0] || ''
+    const question = getKeywordFollowUpQuestion(questionId)
+    const fullQuestion = buildKeywordFollowUpFullQuestion({ keywords, questionId, questionText: question.questionText })
+    const draftKey = buildKeywordFollowUpDraftKey(questionId, fullQuestion)
+
+    if (!resultText) {
+      setError('请先生成结果后再追问')
+      return
+    }
+
+    if (keywords.length === 0) {
+      setError('请输入追问关键词')
+      return
+    }
+
+    if (question.requiresMultipleKeywords && keywords.length < 2) {
+      setError('关系追问请至少选择或输入 2 个关键词')
+      return
+    }
+
+    const existingDraft = followUpDrafts.find((draft) => draft.key === draftKey)
+
+    if (existingDraft && !forceRegenerate) {
+      setFollowUpQuestionId(existingDraft.questionId)
+      setFollowUpFullQuestion(existingDraft.fullQuestion)
+      setFollowUpAnswer(existingDraft.answer)
+      setFollowUpSummaries(existingDraft.summaries)
+      setError('')
+      setCopyStatus('')
+      return
+    }
+
+    setIsFollowUpLoading(true)
+    setFollowUpQuestionId(questionId)
+    setFollowUpFullQuestion(fullQuestion)
+    setFollowUpAnswer('')
+    setFollowUpSummaries([])
+    setError('')
+    setCopyStatus('')
+
+    if (getDemoMode()) {
+      const { answer, summaries } = buildDemoKeywordFollowUpAnswer({ keyword, keywords, questionId, fullQuestion })
+      const draft = createKeywordFollowUpDraft({ answer, fullQuestion, keyword: followUpKeyword, keywords, questionId, summaries })
+
+      setFollowUpAnswer(answer)
+      setFollowUpSummaries(summaries)
+      setFollowUpDrafts((currentDrafts) => upsertKeywordFollowUpDraft(currentDrafts, draft))
+      addHistoryItem({
+        type: 'argument',
+        mode: 'demo',
+        title: `${trimmedInput.replace(/\s+/g, ' ').slice(0, 18)} · 关键词追问`,
+        input: fullQuestion,
+        output: answer,
+      })
+      setCopyStatus(`${DEMO_MODE_NOTICE} 追问完成。`)
+      setIsFollowUpLoading(false)
+      return
+    }
+
+    if (!getLLMConfig().apiKey) {
+      setError(API_KEY_REQUIRED_NOTICE)
+      setIsFollowUpLoading(false)
+      return
+    }
+
+    try {
+      const content = await chatCompletion(
+        buildKeywordFollowUpPrompt({
+          originalInput: trimmedInput,
+          currentText: resultText,
+          keyword,
+          keywords,
+          questionText: question.questionText,
+          fullQuestion,
+        }),
+      )
+      const { answer, summaries } = parseKeywordFollowUpResponse(content)
+      const draft = createKeywordFollowUpDraft({ answer, fullQuestion, keyword: followUpKeyword, keywords, questionId, summaries })
+
+      setFollowUpAnswer(answer)
+      setFollowUpSummaries(summaries)
+      setFollowUpDrafts((currentDrafts) => upsertKeywordFollowUpDraft(currentDrafts, draft))
+      addHistoryItem({
+        type: 'argument',
+        mode: 'api',
+        title: `${trimmedInput.replace(/\s+/g, ' ').slice(0, 18)} · 关键词追问`,
+        input: fullQuestion,
+        output: answer,
+      })
+      setCopyStatus('追问完成')
+    } catch (caughtError) {
+      setError(caughtError instanceof Error ? caughtError.message : '追问失败，请稍后重试')
+    } finally {
+      setIsFollowUpLoading(false)
+    }
+  }
+
+  const handleRegenerateKeywordFollowUp = () => {
+    if (followUpQuestionId) {
+      void handleKeywordFollowUp(followUpQuestionId, true)
     }
   }
 
@@ -318,6 +487,22 @@ function ArgumentGeneratorPage() {
           activeAction={refiningAction}
           disabled={isBusy}
           onAction={handleRefine}
+        />
+      ) : null}
+
+      {resultText ? (
+        <KeywordFollowUpPanel
+          answer={followUpAnswer}
+          disabled={isBusy}
+          fullQuestion={followUpFullQuestion}
+          isLoading={isFollowUpLoading}
+          keyword={followUpKeyword}
+          keywords={followUpKeywords}
+          onAsk={handleKeywordFollowUp}
+          onKeywordChange={handleFollowUpKeywordChange}
+          onRegenerate={handleRegenerateKeywordFollowUp}
+          questionId={followUpQuestionId}
+          summaries={followUpSummaries}
         />
       ) : null}
 

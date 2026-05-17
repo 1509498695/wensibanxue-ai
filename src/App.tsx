@@ -28,8 +28,8 @@ const PAGE_META: Record<PageKey, { title: string; description: string }> = {
     description: '从审题到大纲，一次完成议论文写作思路搭建。',
   },
   idea: {
-    title: '审题立意助手',
-    description: '输入作文题目或材料，快速提取关键词、核心话题、立意方向和避坑提醒。',
+    title: '升格思辨',
+    description: '基于论点关键词继续追问，训练利弊辨析、判断标准和高阶思辨表达。',
   },
   argument: {
     title: '议论文论点生成器',

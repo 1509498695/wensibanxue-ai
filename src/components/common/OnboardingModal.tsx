@@ -15,7 +15,7 @@ const onboardingSteps = [
   {
     icon: BookOpen,
     title: '选择一个学习工具',
-    description: '你可以从审题立意、论点生成、素材推荐、作文诊断或五步写作助手开始。',
+    description: '你可以从升格思辨、论点生成、素材推荐、作文诊断或五步写作助手开始。',
   },
   {
     icon: CheckCircle2,

@@ -6,8 +6,12 @@ import type {
   TopicAnalysisResult,
   WritingWorkflowResult,
 } from '../types/results'
-import { ESSAY_TOTAL_SCORE } from '../utils/resultText'
 import { getStudentLearningMode } from './settingsService'
+import {
+  DIAGNOSIS_JSON_SCHEMA,
+  DIAGNOSIS_SCORING_RULE,
+  DIAGNOSIS_SCORING_STANDARD,
+} from './essayDiagnosisStandard'
 
 export const topicRefineActions = [
   { id: 'deepenIdeas', label: '立意更深刻', instruction: '提升立意的思想深度，让核心命题、推荐立意和写作角度更有辨析度。' },
@@ -38,9 +42,13 @@ export const diagnosisRefineActions = [
 ] as const
 
 export const writingWorkflowRefineActions = [
-  { id: 'optimizeOutline', label: '优化大纲', instruction: '重点优化写作大纲，让开头、主体段和结尾更连贯、更有层次。' },
+  { id: 'optimizeTopic', label: '优化审题', instruction: '重点强化审题分析，优化关键词、核心命题和避坑提醒，让题意把握更准确。' },
+  { id: 'deepenIdeas', label: '立意更深刻', instruction: '提升推荐立意的思想深度和辨析度，并同步调整中心论点，使立意与论点一致。' },
   { id: 'replaceIdeas', label: '换一组立意', instruction: '在不偏离原题的前提下，更换一组新的推荐立意，并同步调整论点结构。' },
+  { id: 'strengthenArguments', label: '强化论点', instruction: '重点强化中心论点和分论点逻辑，让分论点之间更有递进、对照或因果层次。' },
   { id: 'addMaterials', label: '补充素材', instruction: '重点补充更适配论点和大纲的素材，并说明适用角度。' },
+  { id: 'optimizeOutline', label: '优化大纲', instruction: '重点优化写作大纲，让开头、主体段和结尾更连贯、更有层次。' },
+  { id: 'lowerDifficulty', label: '降低难度', instruction: '降低理解和写作难度，保留核心结构，但用更稳妥、更容易模仿的表达重写五步方案。' },
 ] as const
 
 export type TopicRefineAction = (typeof topicRefineActions)[number]['id']
@@ -111,6 +119,8 @@ const argumentSchema = `{
     "writingFocus": "写作重点",
     "warning": "容易跑题的提醒"
   },
+  "recommendedIdeas": ["立意方向1", "立意方向2", "立意方向3"],
+  "warnings": ["避坑提醒1", "避坑提醒2"],
   "centralArguments": ["可选中心论点1", "可选中心论点2", "可选中心论点3"],
   "recommendedArgument": "最推荐的中心论点",
   "subArguments": [
@@ -136,24 +146,7 @@ const materialSchema = `{
   "usageExample": "一段素材使用示范"
 }`
 
-const diagnosisSchema = `{
-  "totalScore": 49,
-  "level": "良好",
-  "percentile": "整体表现处于较好水平",
-  "dimensionScores": [
-    { "label": "审题立意", "score": 48 },
-    { "label": "结构层次", "score": 51 },
-    { "label": "论证逻辑", "score": 47 },
-    { "label": "素材运用", "score": 46 },
-    { "label": "语言表达", "score": 52 }
-  ],
-  "mainProblems": [
-    { "title": "主要问题标题", "description": "具体问题说明" }
-  ],
-  "suggestions": ["修改建议1", "修改建议2", "修改建议3"],
-  "optimizedExample": "一小段片段优化示例",
-  "nextPracticeSuggestions": ["下一步练习建议1", "下一步练习建议2", "下一步练习建议3"]
-}`
+const diagnosisSchema = DIAGNOSIS_JSON_SCHEMA
 
 const writingWorkflowSchema = `{
   "topicAnalysis": {
@@ -270,6 +263,7 @@ export function buildArgumentRefinePrompt(
     currentText: input.currentText,
     action: getAction(argumentRefineActions, input.action),
     schema: argumentSchema,
+    extraRule: '论点生成结果需要保留或更新 recommendedIdeas 和 warnings：recommendedIdeas 固定 3 条，warnings 输出 2-3 条。',
   })
 }
 
@@ -294,7 +288,7 @@ export function buildDiagnosisRefinePrompt(
     currentText: input.currentText,
     action: getAction(diagnosisRefineActions, input.action),
     schema: diagnosisSchema,
-    extraRule: `作文诊断必须使用 ${ESSAY_TOTAL_SCORE} 分制，totalScore 与 dimensionScores[].score 都只能返回 0-${ESSAY_TOTAL_SCORE} 的数字或 null。`,
+    extraRule: `${DIAGNOSIS_SCORING_STANDARD}\n\n${DIAGNOSIS_SCORING_RULE}`,
   })
 }
 

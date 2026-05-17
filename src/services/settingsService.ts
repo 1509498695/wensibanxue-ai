@@ -122,7 +122,11 @@ function toMainProcessConfig(config: AppSettings): RendererAppConfig {
     model: config.model,
     temperature: config.temperature,
     maxTokens: config.maxTokens,
+    defaultDifficulty: config.defaultDifficulty,
+    saveHistory: config.saveHistory,
+    showHomeOnLaunch: config.showHomeOnLaunch,
     demoMode: config.demoMode,
+    studentLearningMode: config.studentLearningMode,
     studentMode: config.studentLearningMode,
     autoRepairJson: config.autoRepairJson,
     customApiBaseUrl: config.customApiBaseUrl,
@@ -171,16 +175,21 @@ function writeFallbackLocalSettings(config: AppSettings) {
 }
 
 function hasConfigValue(config: RendererAppConfig | null | undefined) {
-  return Boolean(
-    config &&
-      (config.provider ||
-        config.apiBaseUrl ||
-        config.apiKey ||
-        config.model ||
-        config.temperature ||
-        config.maxTokens ||
-        config.apiKeysByProvider),
-  )
+  if (!config) {
+    return false
+  }
+
+  return Object.values(config).some((value) => {
+    if (value === undefined || value === null) {
+      return false
+    }
+
+    if (typeof value === 'object') {
+      return Object.keys(value).length > 0
+    }
+
+    return true
+  })
 }
 
 export async function hydrateAppSettings(): Promise<AppSettings> {

@@ -29,6 +29,11 @@ import type {
 import FavoriteButton from '../common/FavoriteButton'
 import { DEFAULT_NEXT_PRACTICE_SUGGESTIONS } from '../../utils/learningGuidance'
 import { ESSAY_TOTAL_SCORE, textFromItem } from '../../utils/resultText'
+import {
+  ESSAY_DIMENSION_SCORE,
+  normalizeEssayDiagnosisScores,
+  scoreToPercent,
+} from '../../utils/essayDiagnosisScoring'
 
 type Tone = 'blue' | 'purple' | 'teal' | 'orange'
 type FavoriteStatusHandler = (message: string) => void
@@ -36,6 +41,8 @@ type FavoriteStatusHandler = (message: string) => void
 const tones: Tone[] = ['blue', 'purple', 'teal', 'orange']
 const dimensionIcons = [Target, Layers3, ShieldCheck, BookOpenCheck, MessageCircle]
 type DimensionDisplayItem = {
+  basis: string
+  grade: string
   label: string
   value: number
   tone: Tone
@@ -48,20 +55,6 @@ function asTextArray(values: ResultTextItem[] | undefined) {
 
 function asStringArray(values: string[] | undefined) {
   return Array.isArray(values) ? values.filter((value) => value.trim()) : []
-}
-
-function clampScore(value: unknown, maxScore = 100) {
-  const parsed = Number(value)
-
-  if (!Number.isFinite(parsed)) {
-    return null
-  }
-
-  return Math.max(0, Math.min(maxScore, Math.round(parsed)))
-}
-
-function scoreToPercent(score: number) {
-  return Math.round((score / ESSAY_TOTAL_SCORE) * 100)
 }
 
 function EmptyState() {
@@ -188,12 +181,14 @@ export function TopicAnalysisCards({ onFavoriteStatus, result }: { result: Topic
 
 export function ArgumentGeneratorCards({ onFavoriteStatus, result }: { result: ArgumentGeneratorResult; onFavoriteStatus?: FavoriteStatusHandler }) {
   const centralArguments = asTextArray(result.centralArguments)
+  const ideas = asTextArray(result.recommendedIdeas)
+  const warnings = asTextArray(result.warnings)
   const materials = Array.isArray(result.materials) ? result.materials : []
   const subArguments = Array.isArray(result.subArguments) ? result.subArguments : []
 
   return (
     <section className="argument-results-grid" aria-label="生成结果">
-      <article className="analysis-card glass-card">
+      <article className="analysis-card argument-analysis-card glass-card">
         <CardTitle icon={<span className="small-title-icon is-blue"><FilePenLine size={19} /></span>}>
           题目分析
         </CardTitle>
@@ -222,65 +217,66 @@ export function ArgumentGeneratorCards({ onFavoriteStatus, result }: { result: A
         </div>
       </article>
 
-      <div className="middle-result-column">
-        <article className="thesis-card glass-card">
-          <CardTitle icon={<span className="small-title-icon is-purple"><Target size={19} /></span>}>
-            中心论点（可选）
+      {ideas.length > 0 ? (
+        <article className="topic-direction-card argument-direction-card glass-card">
+          <CardTitle icon={<span className="small-title-icon is-teal"><Route size={19} /></span>}>
+            推荐立意方向
           </CardTitle>
-          {centralArguments.length > 0 ? (
-            <div className="thesis-list">
-              {centralArguments.map((argument, index) => (
-                <div className="thesis-item" key={`${argument}-${index}`}>
-                  <span>{index + 1}</span>
-                  <p>{argument}</p>
-                  <FavoriteButton
-                    favorite={{
-                      type: 'argument',
-                      title: `中心论点 ${index + 1}`,
-                      content: argument,
-                      source: '论点生成器',
-                      tags: result.analysis?.keywords,
-                    }}
-                    onStatusChange={(message) => onFavoriteStatus?.(message)}
-                  />
-                </div>
-              ))}
-            </div>
-          ) : (
-            <EmptyState />
-          )}
+          <ol className="direction-list argument-horizontal-card-list argument-idea-card-list">
+            {ideas.map((idea, index) => (
+              <li className="argument-idea-item" key={`${idea}-${index}`}>
+                <span>立意{index + 1}</span>
+                <p>{idea}</p>
+                <FavoriteButton
+                  favorite={{
+                    type: 'idea',
+                    title: `推荐立意 ${index + 1}`,
+                    content: idea,
+                    source: '论点生成器',
+                    tags: result.analysis?.keywords,
+                  }}
+                  onStatusChange={(message) => onFavoriteStatus?.(message)}
+                />
+              </li>
+            ))}
+          </ol>
         </article>
+      ) : null}
 
-        <article className="material-card glass-card">
-          <CardTitle icon={<span className="small-title-icon is-teal"><BookOpenCheck size={19} /></span>}>
-            推荐素材方向
-          </CardTitle>
-          {materials.length > 0 ? (
-            <div className="material-list">
-              {materials.map((item, index) => {
-                const label = typeof item === 'string' ? `素材${index + 1}` : item.type || `素材${index + 1}`
-                const text = typeof item === 'string' ? item : item.content || item.text || item.angle || '暂无数据'
-
-                return (
-                  <p key={`${label}-${index}`}>
-                    <span>{label}：</span>
-                    {text}
-                  </p>
-                )
-              })}
-            </div>
-          ) : (
-            <EmptyState />
-          )}
-        </article>
-      </div>
+      <article className="thesis-card glass-card">
+        <CardTitle icon={<span className="small-title-icon is-purple"><Target size={19} /></span>}>
+          中心论点（可选）
+        </CardTitle>
+        {centralArguments.length > 0 ? (
+          <div className="thesis-list">
+            {centralArguments.map((argument, index) => (
+              <div className="thesis-item" key={`${argument}-${index}`}>
+                <span>{index + 1}</span>
+                <p>{argument}</p>
+                <FavoriteButton
+                  favorite={{
+                    type: 'argument',
+                    title: `中心论点 ${index + 1}`,
+                    content: argument,
+                    source: '论点生成器',
+                    tags: result.analysis?.keywords,
+                  }}
+                  onStatusChange={(message) => onFavoriteStatus?.(message)}
+                />
+              </div>
+            ))}
+          </div>
+        ) : (
+          <EmptyState />
+        )}
+      </article>
 
       <article className="structure-card glass-card">
         <CardTitle icon={<span className="small-title-icon is-orange"><BarChart3 size={19} /></span>}>
           分论点结构（推荐）
         </CardTitle>
         {result.recommendedArgument ? (
-          <div className="recommended-thesis">
+          <div className="recommended-thesis argument-recommended-thesis">
             <span>推荐中心论点</span>
             <strong>{result.recommendedArgument}</strong>
             <FavoriteButton
@@ -296,15 +292,18 @@ export function ArgumentGeneratorCards({ onFavoriteStatus, result }: { result: A
           </div>
         ) : null}
         {subArguments.length > 0 ? (
-          <ol className="timeline-list">
+          <ol className="argument-subargument-card-list">
             {subArguments.map((item, index) => {
               const point = typeof item === 'string' ? item : item.point || '暂无数据'
               const detail = typeof item === 'string' ? '' : [item.logic, item.material].filter(Boolean).join('；')
 
               return (
-                <li key={`${point}-${index}`}>
-                  <span>{index + 1}</span>
-                  <p>{detail ? `${point}（${detail}）` : point}</p>
+                <li className="argument-subargument-card" key={`${point}-${index}`}>
+                  <span className="argument-subargument-index">{index + 1}</span>
+                  <div className="argument-subargument-body">
+                    <p className="argument-subargument-point">{point}</p>
+                    {detail ? <p className="argument-subargument-detail">{detail}</p> : null}
+                  </div>
                   <FavoriteButton
                     favorite={{
                       type: 'argument',
@@ -323,6 +322,45 @@ export function ArgumentGeneratorCards({ onFavoriteStatus, result }: { result: A
           <EmptyState />
         )}
       </article>
+
+      <article className="material-card glass-card">
+        <CardTitle icon={<span className="small-title-icon is-teal"><BookOpenCheck size={19} /></span>}>
+          推荐素材方向
+        </CardTitle>
+        {materials.length > 0 ? (
+          <div className="material-list">
+            {materials.map((item, index) => {
+              const label = typeof item === 'string' ? `素材${index + 1}` : item.type || `素材${index + 1}`
+              const text = typeof item === 'string' ? item : item.content || item.text || item.angle || '暂无数据'
+
+              return (
+                <p key={`${label}-${index}`}>
+                  <span>{label}：</span>
+                  {text}
+                </p>
+              )
+            })}
+          </div>
+        ) : (
+          <EmptyState />
+        )}
+      </article>
+
+      {warnings.length > 0 ? (
+        <article className="topic-warning-card argument-warning-card glass-card">
+          <CardTitle icon={<span className="small-title-icon is-orange"><AlertTriangle size={19} /></span>}>
+            避坑提醒
+          </CardTitle>
+          <ul className="pitfall-list argument-horizontal-card-list argument-warning-list">
+            {warnings.map((warning, index) => (
+              <li className="argument-warning-item" key={`${warning}-${index}`}>
+                <Lightbulb size={16} />
+                <span>{warning}</span>
+              </li>
+            ))}
+          </ul>
+        </article>
+      ) : null}
     </section>
   )
 }
@@ -435,23 +473,24 @@ export function MaterialRecommendCards({ onFavoriteStatus, result }: { result: M
 }
 
 export function EssayDiagnosisCards({ onFavoriteStatus, result }: { result: EssayDiagnosisResult; onFavoriteStatus?: FavoriteStatusHandler }) {
-  const score = clampScore(result.totalScore, ESSAY_TOTAL_SCORE)
-  const scorePercent = score === null ? 0 : scoreToPercent(score)
+  const scoreSummary = normalizeEssayDiagnosisScores(result)
+  const score = scoreSummary.totalScore
+  const scorePercent = score === null ? 0 : scoreToPercent(score, ESSAY_TOTAL_SCORE)
   const starCount = score === null ? 0 : Math.round((score / ESSAY_TOTAL_SCORE) * 5)
   const problems = asTextArray(result.mainProblems)
   const suggestions = asTextArray(result.suggestions)
   const practiceSuggestions = asTextArray(result.nextPracticeSuggestions)
   const visiblePracticeSuggestions =
     practiceSuggestions.length > 0 ? practiceSuggestions : DEFAULT_NEXT_PRACTICE_SUGGESTIONS
-  const dimensions = Array.isArray(result.dimensionScores) ? result.dimensionScores : []
-  const visibleDimensions = dimensions
-    .map((item, index) => ({
-      label: item.label || item.name || `维度${index + 1}`,
-      value: clampScore(item.score ?? item.value, ESSAY_TOTAL_SCORE),
+  const dimensionMaxScore = scoreSummary.isStrictStandard ? ESSAY_DIMENSION_SCORE : ESSAY_TOTAL_SCORE
+  const visibleDimensions: DimensionDisplayItem[] = scoreSummary.dimensions.map((item, index) => ({
+      basis: item.basis,
+      grade: item.grade,
+      label: item.label,
+      value: item.score,
       tone: tones[index % tones.length],
       Icon: dimensionIcons[index % dimensionIcons.length],
     }))
-    .filter((item): item is DimensionDisplayItem => item.value !== null)
 
   return (
     <>
@@ -501,9 +540,11 @@ export function EssayDiagnosisCards({ onFavoriteStatus, result }: { result: Essa
                       <span className="dimension-label">{item.label}</span>
                       <span
                         className={`progress-bar dimension-progress is-${item.tone}`}
-                        style={{ '--progress-value': `${scoreToPercent(item.value)}%` } as CSSProperties}
+                        style={{ '--progress-value': `${scoreToPercent(item.value, dimensionMaxScore)}%` } as CSSProperties}
                       />
-                      <strong>{item.value}</strong>
+                      <strong>{scoreSummary.isStrictStandard ? `${item.value}/20` : item.value}</strong>
+                      <span className="dimension-grade">{item.grade}</span>
+                      {item.basis ? <p className="dimension-basis">{item.basis}</p> : null}
                     </div>
                   )
                 })

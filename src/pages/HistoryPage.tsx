@@ -27,7 +27,7 @@ type HistoryTypeMeta = {
 
 const filterOptions: Array<{ label: string; value: HistoryItemType | 'all' }> = [
   { label: '全部', value: 'all' },
-  { label: '审题立意', value: 'topic' },
+  { label: '升格思辨', value: 'topic' },
   { label: '论点生成', value: 'argument' },
   { label: '素材推荐', value: 'material' },
   { label: '作文诊断', value: 'diagnosis' },
@@ -35,7 +35,7 @@ const filterOptions: Array<{ label: string; value: HistoryItemType | 'all' }> = 
 ]
 
 const typeMeta: Record<HistoryItemType, HistoryTypeMeta> = {
-  topic: { label: '审题立意', tone: 'blue', icon: FileSearch },
+  topic: { label: '升格思辨', tone: 'blue', icon: FileSearch },
   argument: { label: '论点生成', tone: 'purple', icon: Lightbulb },
   material: { label: '素材推荐', tone: 'teal', icon: FolderOpen },
   diagnosis: { label: '作文诊断', tone: 'orange', icon: NotebookText },
@@ -148,7 +148,7 @@ function HistoryPage() {
       <header className="history-header">
         <div>
           <h1>历史记录</h1>
-          <p>查看最近生成的审题、论点、素材、作文诊断和五步写作结果。</p>
+          <p>查看最近生成的思辨、论点、素材、作文诊断和五步写作结果。</p>
         </div>
 
         <button

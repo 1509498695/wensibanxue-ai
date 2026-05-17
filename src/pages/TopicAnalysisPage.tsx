@@ -1,91 +1,175 @@
 import { useEffect, useState } from 'react'
 import ReactMarkdown from 'react-markdown'
 import {
-  AlertTriangle,
+  BrainCircuit,
   ClipboardCopy,
-  FileSearch,
+  KeyRound,
+  Lightbulb,
   PenLine,
-  Route,
-  SearchCheck,
-  SlidersHorizontal,
+  RefreshCw,
+  SendHorizontal,
   Sparkles,
 } from 'lucide-react'
-import RefineActionBar, { type RefineActionItem } from '../components/common/RefineActionBar'
 import ExportMenu from '../components/common/ExportMenu'
 import PageHero from '../components/common/PageHero'
-import ThinkingPromptCard from '../components/common/ThinkingPromptCard'
-import { TopicAnalysisCards } from '../components/results/StructuredResultCards'
 import { getLLMConfig, chatCompletion } from '../services/llmClient'
-import { buildTopicAnalysisPrompt } from '../services/prompts'
-import { buildTopicRefinePrompt, type TopicRefineAction } from '../services/refinePrompts'
+import {
+  API_KEY_REQUIRED_NOTICE,
+  DEMO_MODE_NOTICE,
+} from '../services/demoContent'
+import { getDemoMode } from '../services/settingsService'
 import { addHistoryItem } from '../services/historyService'
-import { parseModelJsonWithRepair } from '../services/jsonRepairService'
-import { API_KEY_REQUIRED_NOTICE, DEMO_MODE_NOTICE, demoTopicAnalysisStructuredResult, getDemoTopicRefineResult } from '../services/demoContent'
-import { getDemoMode, getStudentLearningMode } from '../services/settingsService'
-import type { TopicAnalysisResult } from '../types/results'
+import {
+  buildDemoUpgradeThinkingAnswer,
+  buildUpgradeThinkingDraftKey,
+  buildUpgradeThinkingFullQuestion,
+  buildUpgradeThinkingPrompt,
+  createUpgradeThinkingDraft,
+  getUpgradeThinkingQuestion,
+  isUpgradeThinkingQuestionId,
+  normalizeUpgradeThinkingDrafts,
+  parseUpgradeThinkingResponse,
+  type UpgradeThinkingQuestionId,
+  upgradeThinkingQuestions,
+  upsertUpgradeThinkingDraft,
+} from '../services/upgradeThinking'
+import { formatFollowUpKeywords, parseFollowUpKeywords } from '../services/keywordFollowUp'
 import { exportResultFile } from '../utils/exportFile'
 import type { ResultExportFormat } from '../utils/exportFormatter'
-import { readLastTopicAnalysisState, writeLastTopicAnalysisState } from '../utils/lastPageState'
-import { formatTopicAnalysisResult } from '../utils/resultText'
+import {
+  normalizeFollowUpSummaries,
+  readLastArgumentGeneratorState,
+  readLastTopicAnalysisState,
+  writeLastTopicAnalysisState,
+} from '../utils/lastPageState'
 
-const depthOptions = ['基础', '深入', '高分']
-const defaultInput = '阅读下面材料，根据要求写一篇不少于800字的议论文。材料主题为：责任与担当。'
-const fallbackNotice = '模型返回格式不完全规范，已使用文本模式展示。'
-const topicRefineActionItems: Array<RefineActionItem<TopicRefineAction>> = [
-  { id: 'deepenIdeas', label: '立意更深刻', Icon: Sparkles },
-  { id: 'lowerDifficulty', label: '降低难度', Icon: SlidersHorizontal },
-  { id: 'addWarnings', label: '增加避坑提醒', Icon: AlertTriangle },
-  { id: 'generateAngles', label: '生成写作角度', Icon: Route },
-]
+function uniqueKeywords(keywords: string[]) {
+  return Array.from(new Set(keywords.map((keyword) => keyword.trim()).filter(Boolean))).slice(0, 8)
+}
+
+function composeUpgradeThinkingText(fullQuestion: string, viewpoints: string[], answer: string) {
+  return [
+    fullQuestion ? `## 思辨问题\n${fullQuestion}` : '',
+    viewpoints.length > 0 ? `## 推荐观点\n${viewpoints.map((viewpoint) => `- ${viewpoint}`).join('\n')}` : '',
+    answer ? `## AI 分析\n${answer}` : '',
+  ].filter(Boolean).join('\n\n')
+}
 
 function TopicAnalysisPage() {
   const [initialPageState] = useState(() => readLastTopicAnalysisState())
-  const [input, setInput] = useState(initialPageState.input || defaultInput)
-  const [depth, setDepth] = useState(initialPageState.depth || '深入')
-  const [resultText, setResultText] = useState(initialPageState.resultText || '')
-  const [structuredResult, setStructuredResult] = useState<TopicAnalysisResult | null>(
-    initialPageState.structuredResult || null,
+  const [argumentPageState] = useState(() => readLastArgumentGeneratorState())
+  const [keyword, setKeyword] = useState(initialPageState.followUpKeyword || '')
+  const [questionId, setQuestionId] = useState<UpgradeThinkingQuestionId | undefined>(() =>
+    isUpgradeThinkingQuestionId(initialPageState.followUpQuestionId) ? initialPageState.followUpQuestionId : undefined,
   )
-  const [isTextFallback, setIsTextFallback] = useState(Boolean(initialPageState.isTextFallback))
-  const [lastGeneratedAt, setLastGeneratedAt] = useState(initialPageState.lastGeneratedAt || '')
+  const [fullQuestion, setFullQuestion] = useState(initialPageState.followUpFullQuestion || '')
+  const [answer, setAnswer] = useState(initialPageState.followUpAnswer || '')
+  const [viewpoints, setViewpoints] = useState(() => normalizeFollowUpSummaries(initialPageState))
+  const [drafts, setDrafts] = useState(() => normalizeUpgradeThinkingDrafts(initialPageState))
   const [isLoading, setIsLoading] = useState(false)
-  const [refiningAction, setRefiningAction] = useState<TopicRefineAction | null>(null)
+  const [lastGeneratedAt, setLastGeneratedAt] = useState(initialPageState.lastGeneratedAt || '')
   const [error, setError] = useState('')
   const [copyStatus, setCopyStatus] = useState('')
-  const isBusy = isLoading || refiningAction !== null
-  const studentLearningMode = getStudentLearningMode()
+  const recommendedKeywords = uniqueKeywords(argumentPageState.structuredResult?.analysis?.keywords || [])
+  const selectedKeywords = parseFollowUpKeywords(keyword)
+  const selectedKeywordSet = new Set(selectedKeywords)
+  const argumentInput = argumentPageState.input || ''
+  const argumentText = argumentPageState.resultText || ''
 
   useEffect(() => {
-    writeLastTopicAnalysisState({ input, depth, resultText, structuredResult, isTextFallback, lastGeneratedAt })
-  }, [depth, input, isTextFallback, lastGeneratedAt, resultText, structuredResult])
+    writeLastTopicAnalysisState({
+      input: argumentInput,
+      resultText: answer,
+      structuredResult: null,
+      isTextFallback: false,
+      lastGeneratedAt,
+      followUpKeyword: keyword,
+      followUpQuestionId: questionId,
+      followUpFullQuestion: fullQuestion,
+      followUpAnswer: answer,
+      followUpSummaries: viewpoints,
+      followUpDrafts: drafts,
+    })
+  }, [answer, argumentInput, drafts, fullQuestion, keyword, lastGeneratedAt, questionId, viewpoints])
 
-  const handleGenerate = async () => {
-    const trimmedInput = input.trim()
+  const clearCurrentResult = () => {
+    setQuestionId(undefined)
+    setFullQuestion('')
+    setAnswer('')
+    setViewpoints([])
+  }
 
-    if (!trimmedInput) {
-      setError('请输入作文题目或材料')
+  const handleKeywordChange = (value: string) => {
+    setKeyword(value)
+    clearCurrentResult()
+  }
+
+  const handleKeywordChipClick = (item: string) => {
+    const nextKeywords = selectedKeywordSet.has(item)
+      ? selectedKeywords.filter((keywordItem) => keywordItem !== item)
+      : [...selectedKeywords, item]
+
+    handleKeywordChange(formatFollowUpKeywords(nextKeywords))
+  }
+
+  const handleAsk = async (nextQuestionId: UpgradeThinkingQuestionId, forceRegenerate = false) => {
+    const parsedKeywords = parseFollowUpKeywords(keyword)
+    const activeKeyword = parsedKeywords[0] || ''
+    const question = getUpgradeThinkingQuestion(nextQuestionId)
+    const nextFullQuestion = activeKeyword ? buildUpgradeThinkingFullQuestion(activeKeyword, nextQuestionId) : ''
+    const draftKey = buildUpgradeThinkingDraftKey(nextQuestionId, nextFullQuestion)
+
+    if (!activeKeyword) {
+      setError('请输入或选择一个关键词')
+      return
+    }
+
+    const existingDraft = drafts.find((draft) => draft.key === draftKey)
+
+    if (existingDraft && !forceRegenerate) {
+      setQuestionId(existingDraft.questionId)
+      setFullQuestion(existingDraft.fullQuestion)
+      setAnswer(existingDraft.answer)
+      setViewpoints(existingDraft.viewpoints)
+      setError('')
+      setCopyStatus('')
       return
     }
 
     setIsLoading(true)
+    setQuestionId(nextQuestionId)
+    setFullQuestion(nextFullQuestion)
+    setAnswer('')
+    setViewpoints([])
     setError('')
     setCopyStatus('')
-    setIsTextFallback(false)
 
     if (getDemoMode()) {
-      const output = formatTopicAnalysisResult(demoTopicAnalysisStructuredResult)
+      const result = buildDemoUpgradeThinkingAnswer({
+        fullQuestion: nextFullQuestion,
+        keyword: activeKeyword,
+        questionId: nextQuestionId,
+      })
+      const draft = createUpgradeThinkingDraft({
+        answer: result.answer,
+        fullQuestion: nextFullQuestion,
+        keyword,
+        questionId: nextQuestionId,
+        viewpoints: result.viewpoints,
+      })
 
-      setStructuredResult(demoTopicAnalysisStructuredResult)
-      setResultText(output)
+      setAnswer(result.answer)
+      setViewpoints(result.viewpoints)
+      setDrafts((currentDrafts) => upsertUpgradeThinkingDraft(currentDrafts, draft))
       setLastGeneratedAt(new Date().toISOString())
       addHistoryItem({
         type: 'topic',
         mode: 'demo',
-        title: trimmedInput.replace(/\s+/g, ' ').slice(0, 24),
-        input: trimmedInput,
-        output,
+        title: `${activeKeyword.slice(0, 18)} · 升格思辨`,
+        input: nextFullQuestion,
+        output: result.answer,
       })
-      setCopyStatus(DEMO_MODE_NOTICE)
+      setCopyStatus(`${DEMO_MODE_NOTICE} 思辨完成。`)
       setIsLoading(false)
       return
     }
@@ -97,23 +181,36 @@ function TopicAnalysisPage() {
     }
 
     try {
-      const content = await chatCompletion(buildTopicAnalysisPrompt(trimmedInput, { depth }))
-      const parseResult = await parseModelJsonWithRepair<TopicAnalysisResult>(content)
-      const parsedResult = parseResult.result
-      const output = parsedResult ? formatTopicAnalysisResult(parsedResult) : content
+      const content = await chatCompletion(
+        buildUpgradeThinkingPrompt({
+          argumentInput,
+          argumentText,
+          fullQuestion: nextFullQuestion,
+          keyword: activeKeyword,
+          questionText: question.questionText,
+        }),
+      )
+      const result = parseUpgradeThinkingResponse(content)
+      const draft = createUpgradeThinkingDraft({
+        answer: result.answer,
+        fullQuestion: nextFullQuestion,
+        keyword,
+        questionId: nextQuestionId,
+        viewpoints: result.viewpoints,
+      })
 
-      setStructuredResult(parsedResult)
-      setResultText(output)
-      setIsTextFallback(!parsedResult)
-      setCopyStatus(parseResult.repaired ? '模型返回格式已自动修复。' : parsedResult ? '' : fallbackNotice)
+      setAnswer(result.answer)
+      setViewpoints(result.viewpoints)
+      setDrafts((currentDrafts) => upsertUpgradeThinkingDraft(currentDrafts, draft))
       setLastGeneratedAt(new Date().toISOString())
       addHistoryItem({
         type: 'topic',
         mode: 'api',
-        title: trimmedInput.replace(/\s+/g, ' ').slice(0, 24),
-        input: trimmedInput,
-        output,
+        title: `${activeKeyword.slice(0, 18)} · 升格思辨`,
+        input: nextFullQuestion,
+        output: result.answer,
       })
+      setCopyStatus('思辨完成')
     } catch (caughtError) {
       setError(caughtError instanceof Error ? caughtError.message : '生成失败，请稍后重试')
     } finally {
@@ -121,102 +218,37 @@ function TopicAnalysisPage() {
     }
   }
 
-  const handleRefine = async (action: TopicRefineAction) => {
-    const trimmedInput = input.trim()
-    const actionLabel = topicRefineActionItems.find((item) => item.id === action)?.label || '二次优化'
-
-    if (!trimmedInput || !resultText) {
-      setError('请先生成结果后再优化')
-      return
-    }
-
-    setRefiningAction(action)
-    setError('')
-    setCopyStatus('')
-
-    if (getDemoMode()) {
-      const demoResult = getDemoTopicRefineResult(action)
-      const output = formatTopicAnalysisResult(demoResult)
-
-      setStructuredResult(demoResult)
-      setResultText(output)
-      setIsTextFallback(false)
-      setLastGeneratedAt(new Date().toISOString())
-      addHistoryItem({
-        type: 'topic',
-        mode: 'demo',
-        title: `${trimmedInput.replace(/\s+/g, ' ').slice(0, 18)} · ${actionLabel}`,
-        input: trimmedInput,
-        output,
-      })
-      setCopyStatus(`${DEMO_MODE_NOTICE} 优化完成。`)
-      setRefiningAction(null)
-      return
-    }
-
-    if (!getLLMConfig().apiKey) {
-      setError(API_KEY_REQUIRED_NOTICE)
-      setRefiningAction(null)
-      return
-    }
-
-    try {
-      const content = await chatCompletion(
-        buildTopicRefinePrompt({
-          originalInput: trimmedInput,
-          currentResult: structuredResult,
-          currentText: resultText,
-          action,
-        }),
-      )
-      const parseResult = await parseModelJsonWithRepair<TopicAnalysisResult>(content)
-      const parsedResult = parseResult.result
-      const output = parsedResult ? formatTopicAnalysisResult(parsedResult) : content
-
-      setStructuredResult(parsedResult)
-      setResultText(output)
-      setIsTextFallback(!parsedResult)
-      setCopyStatus(parseResult.repaired ? '模型返回格式已自动修复。' : parsedResult ? '优化完成' : fallbackNotice)
-      setLastGeneratedAt(new Date().toISOString())
-      addHistoryItem({
-        type: 'topic',
-        mode: 'api',
-        title: `${trimmedInput.replace(/\s+/g, ' ').slice(0, 18)} · ${actionLabel}`,
-        input: trimmedInput,
-        output,
-      })
-    } catch (caughtError) {
-      setError(caughtError instanceof Error ? caughtError.message : '优化失败，请稍后重试')
-    } finally {
-      setRefiningAction(null)
+  const handleRegenerate = () => {
+    if (questionId) {
+      void handleAsk(questionId, true)
     }
   }
 
   const handleCopy = async () => {
-    if (!resultText) {
+    if (!answer) {
       return
     }
 
     try {
-      await navigator.clipboard.writeText(resultText)
-      setCopyStatus('已复制生成结果')
+      await navigator.clipboard.writeText(composeUpgradeThinkingText(fullQuestion, viewpoints, answer))
+      setCopyStatus('已复制升格思辨结果')
     } catch {
       setError('复制失败，请手动复制')
     }
   }
 
   const handleExport = async (format: ResultExportFormat) => {
-    if (!resultText) {
+    if (!answer) {
       return
     }
 
     try {
-      const result = await exportResultFile(format, '审题立意分析', {
-          typeLabel: '审题立意助手',
-          title: input.trim().replace(/\s+/g, ' ').slice(0, 24) || '审题立意分析',
-          input: input.trim(),
-          output: resultText,
-        })
+      const result = await exportResultFile(format, '升格思辨结果', {
+        typeLabel: '升格思辨',
+        title: fullQuestion.slice(0, 24) || '升格思辨结果',
+        input: fullQuestion,
+        output: composeUpgradeThinkingText(fullQuestion, viewpoints, answer),
+      })
 
       if (!result.canceled) {
         setCopyStatus('导出成功')
@@ -227,107 +259,146 @@ function TopicAnalysisPage() {
   }
 
   return (
-    <div className="topic-page">
+    <div className="topic-page upgrade-thinking-page">
       <PageHero
         className="topic-header"
-        icon={<FileSearch size={34} strokeWidth={2.1} />}
-        subtitle="精准分析作文题目，提炼核心概念，帮你找到更稳妥、更深刻的立意方向。"
-        title="审题立意助手"
+        icon={<BrainCircuit size={34} strokeWidth={2.1} />}
+        subtitle="基于论点生成的关键词继续追问，训练利弊辨析、标准意识和更高级的思辨表达。"
+        title="升格思辨"
         tone="blue"
         variant="topic"
       />
 
-      <section className="topic-input-card glass-card app-card app-input-panel">
+      <section className="keyword-follow-up-card glass-card upgrade-thinking-panel" aria-label="升格思辨">
         <div className="card-title">
-          <span className="small-title-icon is-blue">
-            <PenLine size={19} />
+          <span className="small-title-icon is-teal">
+            <Sparkles size={19} />
           </span>
-          作文题目 / 材料
-        </div>
-        <div className="topic-textarea-wrap app-textarea-field">
-          <textarea
-            aria-label="作文题目或材料"
-            className="topic-textarea"
-            onChange={(event) => setInput(event.target.value)}
-            value={input}
-          />
-        </div>
-        <div className="input-meta-row">
-          <span>建议输入题目、材料或关键词。</span>
-          <span>{input.length} / 500</span>
+          关键词思辨
         </div>
 
-        <div className="topic-controls">
-          <div className="control-group">
-            <span className="control-label">
-              <SearchCheck size={21} />
-              分析深度：
+        <div className="keyword-follow-up-grid">
+          <label className="keyword-follow-up-field">
+            <span>
+              <KeyRound size={16} />
+              输入关键词
             </span>
-            <div className="chip-group" aria-label="分析深度选择">
-              {depthOptions.map((option) => (
+            <input
+              className="keyword-follow-up-input"
+              disabled={isLoading}
+              onChange={(event) => handleKeywordChange(event.target.value)}
+              placeholder="例如：责任、青年、时代"
+              value={keyword}
+            />
+          </label>
+
+          <div className="keyword-follow-up-keywords" aria-label="推荐关键词">
+            <span className="keyword-follow-up-label">论点生成页关键词</span>
+            {recommendedKeywords.length > 0 ? (
+              <div className="keyword-follow-up-chip-list">
+                {recommendedKeywords.map((item) => (
+                  <button
+                    className={`keyword-chip${selectedKeywordSet.has(item) ? ' is-active' : ''}`}
+                    disabled={isLoading}
+                    key={item}
+                    onClick={() => handleKeywordChipClick(item)}
+                    type="button"
+                  >
+                    {item}
+                  </button>
+                ))}
+              </div>
+            ) : (
+              <p className="upgrade-thinking-note">未读取到论点生成关键词，可先在“论点生成”页生成结果，或在左侧手动输入关键词。</p>
+            )}
+          </div>
+        </div>
+
+        <div className="keyword-follow-up-questions">
+          <span className="keyword-follow-up-label">
+            <Lightbulb size={16} />
+            选择思辨方向
+          </span>
+          <div className="keyword-follow-up-question-list">
+            {upgradeThinkingQuestions.map((question) => {
+              const isActive = questionId === question.id
+              const isQuestionLoading = isLoading && isActive
+
+              return (
                 <button
-                  className={`chip${depth === option ? ' is-active' : ''}`}
-                  key={option}
-                  onClick={() => setDepth(option)}
+                  className={`keyword-question-button${isActive ? ' is-active' : ''}${isQuestionLoading ? ' is-loading' : ''}`}
+                  disabled={isLoading}
+                  key={question.id}
+                  onClick={() => handleAsk(question.id)}
                   type="button"
                 >
-                  {option}
+                  {isQuestionLoading ? <span className="loading-spinner" /> : <SendHorizontal size={15} />}
+                  {isQuestionLoading ? '思辨中...' : question.label}
                 </button>
-              ))}
-            </div>
+              )
+            })}
           </div>
-
-          <button
-            className={`gradient-button topic-analyze-button${isLoading ? ' button-loading' : ''}`}
-            disabled={isBusy}
-            onClick={handleGenerate}
-            type="button"
-          >
-            {isLoading ? <span className="loading-spinner" /> : <Sparkles size={20} />}
-            {isLoading ? '分析中...' : resultText ? '重新分析' : '开始分析'}
-          </button>
         </div>
+
         {error ? <p className="inline-error">{error}</p> : null}
         {copyStatus ? <p className="inline-success">{copyStatus}</p> : null}
       </section>
 
       <div className="result-actions app-action-bar">
-        <button className="secondary-button" disabled={!resultText} onClick={handleCopy} type="button">
+        <button className="secondary-button" disabled={!answer} onClick={handleCopy} type="button">
           <ClipboardCopy size={18} />
-          复制分析
+          复制结果
         </button>
-        <ExportMenu disabled={!resultText} label="导出结果" onExport={handleExport} />
+        <ExportMenu disabled={!answer} label="导出结果" onExport={handleExport} />
       </div>
 
-      {resultText ? (
-        <RefineActionBar
-          actions={topicRefineActionItems}
-          activeAction={refiningAction}
-          disabled={isBusy}
-          onAction={handleRefine}
-        />
-      ) : null}
+      {fullQuestion || answer ? (
+        <section className="keyword-follow-up-result upgrade-thinking-result glass-card">
+          {fullQuestion ? (
+            <div className="keyword-follow-up-question-preview">
+              <span>思辨问题</span>
+              <p>{fullQuestion}</p>
+              {viewpoints.length > 0 ? (
+                <div className="keyword-follow-up-summary">
+                  <span>推荐观点</span>
+                  <div className="keyword-follow-up-summary-list">
+                    {viewpoints.slice(0, 5).map((viewpoint) => (
+                      <strong key={viewpoint}>{viewpoint.slice(0, 20)}</strong>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
+            </div>
+          ) : null}
 
-      {structuredResult ? (
-        <TopicAnalysisCards onFavoriteStatus={setCopyStatus} result={structuredResult} />
-      ) : resultText ? (
-        <article className="ai-result-card glass-card">
+          {answer ? (
+            <div className="keyword-follow-up-answer">
+              <div className="keyword-follow-up-answer-header">
+                <span>AI 分析</span>
+                {questionId ? (
+                  <button className="keyword-follow-up-regenerate" disabled={isLoading} onClick={handleRegenerate} type="button">
+                    {isLoading ? <span className="loading-spinner" /> : <RefreshCw size={15} />}
+                    {isLoading ? '思辨中...' : '重新生成'}
+                  </button>
+                ) : null}
+              </div>
+              <div className="markdown-body">
+                <ReactMarkdown>{answer}</ReactMarkdown>
+              </div>
+            </div>
+          ) : null}
+        </section>
+      ) : (
+        <section className="ai-result-card glass-card upgrade-thinking-empty">
           <div className="card-title">
             <span className="small-title-icon is-blue">
-              <SearchCheck size={19} />
+              <PenLine size={19} />
             </span>
-            AI 审题分析
+            开始升格思辨
           </div>
-          {isTextFallback ? <p className="inline-success">{fallbackNotice}</p> : null}
-          <div className="markdown-body">
-            <ReactMarkdown>{resultText}</ReactMarkdown>
-          </div>
-        </article>
-      ) : (
-        <TopicAnalysisCards onFavoriteStatus={setCopyStatus} result={demoTopicAnalysisStructuredResult} />
+          <p>选择或输入关键词后，围绕“利与弊”或“判断标准”继续追问，系统会给出推荐观点和可迁移的议论文分析。</p>
+        </section>
       )}
-
-      {studentLearningMode && resultText ? <ThinkingPromptCard prompts={structuredResult?.thinkingPrompts} /> : null}
     </div>
   )
 }

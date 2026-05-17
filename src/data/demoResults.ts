@@ -35,6 +35,16 @@ export const argumentGeneratorDemo: ArgumentGeneratorResult = {
     writingFocus: '青年如何在时代中成长，又如何担当时代使命，推动时代发展。',
     warning: '不要把文章写成单纯赞美青年，也不要脱离时代背景。',
   },
+  recommendedIdeas: [
+    '青年应在回应时代需要中完成自我成长。',
+    '个人理想只有融入时代坐标，才能获得更深远的价值。',
+    '真正的青春担当，是把热情落实为持续行动。',
+  ],
+  warnings: [
+    '不要只写“青年很重要”，要写清青年与时代的互动关系。',
+    '不要把时代当成空泛背景，要落到具体任务、选择和行动。',
+    '不要堆叠口号，分论点之间要有清晰层次。',
+  ],
   centralArguments: ['青年与时代同频共振，方能书写无悔人生。', '青年以担当回应时代，时代因青年而向前。', '时代为青年提供舞台，青年为时代注入希望。'],
   recommendedArgument: '青年与时代同频共振，方能书写无悔人生。',
   subArguments: [
@@ -64,15 +74,28 @@ export const materialRecommendDemo: MaterialRecommendResult = {
 }
 
 export const essayDiagnosisDemo: EssayDiagnosisResult = {
-  totalScore: 49,
-  level: '良好',
-  percentile: '整体表现处于较好水平',
+  totalScore: 44,
+  level: '二等',
+  percentile: '内容二等、表达一等、特征二等，整体处于中等偏上水平',
   dimensionScores: [
-    { label: '审题立意', score: 48 },
-    { label: '结构层次', score: 51 },
-    { label: '论证逻辑', score: 47 },
-    { label: '素材运用', score: 46 },
-    { label: '语言表达', score: 52 },
+    {
+      label: '内容',
+      score: 15,
+      grade: '二等',
+      basis: '符合成长主题，中心较明确，但内容主要依赖个人经历，充实度还可提升。',
+    },
+    {
+      label: '表达',
+      score: 16,
+      grade: '一等',
+      basis: '基本符合文体要求，结构清楚，语言流畅，叙述自然。',
+    },
+    {
+      label: '特征',
+      score: 13,
+      grade: '二等',
+      basis: '有一定反思意识和表达亮点，但深刻性、丰富性与创意仍可加强。',
+    },
   ],
   mainProblems: [
     { title: '论证不够深入', description: '文章整体较为平实，缺少对“成长为什么需要挫折”的进一步分析。' },

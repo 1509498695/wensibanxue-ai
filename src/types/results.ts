@@ -25,6 +25,8 @@ export type ArgumentGeneratorResult = {
     writingFocus?: string
     warning?: string
   }
+  recommendedIdeas?: ResultTextItem[]
+  warnings?: ResultTextItem[]
   centralArguments?: ResultTextItem[]
   recommendedArgument?: string
   subArguments?: Array<{
@@ -54,9 +56,14 @@ export type EssayDiagnosisResult = {
   level?: string
   percentile?: string
   dimensionScores?: Array<{
+    basis?: string
+    description?: string
+    grade?: string
     label?: string
     name?: string
+    reason?: string
     score?: number | null
+    text?: string
     value?: number | null
   }>
   mainProblems?: ResultTextItem[]

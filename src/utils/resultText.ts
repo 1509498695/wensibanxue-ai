@@ -12,23 +12,16 @@ import {
   DEFAULT_THINKING_PROMPTS,
 } from './learningGuidance'
 import { getStudentLearningMode } from '../services/settingsService'
+import {
+  ESSAY_DIMENSION_SCORE,
+  ESSAY_TOTAL_SCORE,
+  normalizeEssayDiagnosisScores,
+} from './essayDiagnosisScoring'
 
-export const ESSAY_TOTAL_SCORE = 60
+export { ESSAY_DIMENSION_SCORE, ESSAY_TOTAL_SCORE } from './essayDiagnosisScoring'
 
 function hasText(value: unknown): value is string {
   return typeof value === 'string' && value.trim().length > 0
-}
-
-function normalizeNumber(value: unknown) {
-  const parsed = Number(value)
-
-  return Number.isFinite(parsed) ? parsed : null
-}
-
-function normalizeEssayScore(value: unknown) {
-  const parsed = normalizeNumber(value)
-
-  return parsed === null ? null : Math.max(0, Math.min(ESSAY_TOTAL_SCORE, Math.round(parsed)))
 }
 
 export function textFromItem(item: ResultTextItem | undefined) {
@@ -117,6 +110,10 @@ export function formatArgumentGeneratorResult(result: ArgumentGeneratorResult) {
     `写作重点：${result.analysis?.writingFocus || '暂无数据'}`,
     `提醒：${result.analysis?.warning || '暂无数据'}`,
     '',
+    ...lineList('推荐立意', result.recommendedIdeas),
+    '',
+    ...lineList('避坑提醒', result.warnings),
+    '',
     ...lineList('可选中心论点', result.centralArguments),
     '',
     '## 推荐中心论点',
@@ -146,17 +143,16 @@ export function formatMaterialRecommendResult(result: MaterialRecommendResult) {
 }
 
 export function formatEssayDiagnosisResult(result: EssayDiagnosisResult) {
-  const totalScore = normalizeEssayScore(result.totalScore)
-  const dimensionScores = Array.isArray(result.dimensionScores)
-    ? result.dimensionScores
-        .map((item) => {
-          const score = normalizeEssayScore(item.score ?? item.value)
-          const label = item.label || item.name
+  const scoreSummary = normalizeEssayDiagnosisScores(result)
+  const totalScore = scoreSummary.totalScore
+  const dimensionScores = scoreSummary.dimensions.map((item) => {
+    const scoreText = scoreSummary.isStrictStandard
+      ? `${item.score} / ${ESSAY_DIMENSION_SCORE}（${item.grade}）`
+      : `${item.score}（${item.grade}）`
+    const basis = item.basis ? ` - ${item.basis}` : ''
 
-          return label && score !== null ? `${label}：${score}` : ''
-        })
-        .filter(hasText)
-    : []
+    return `${item.label}：${scoreText}${basis}`
+  })
   const practiceItems = Array.isArray(result.nextPracticeSuggestions)
     ? result.nextPracticeSuggestions.map(textFromItem).filter(hasText)
     : []

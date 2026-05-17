@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import ReactMarkdown from 'react-markdown'
 import {
   BookOpenCheck,
@@ -13,6 +13,7 @@ import {
   RefreshCw,
   Rocket,
   SearchCheck,
+  SlidersHorizontal,
   Sparkles,
   Target,
 } from 'lucide-react'
@@ -41,18 +42,29 @@ import { DEFAULT_SELF_WRITING_REMINDER } from '../utils/learningGuidance'
 import { normalizeWritingWorkflowResult, parseWritingWorkflowResult } from '../utils/writingWorkflowResult'
 import { supplementWorkflowMaterials } from '../data/materialLibrary'
 import type { AddFavoriteInput } from '../services/favoriteService'
+import {
+  normalizeWritingWorkflowSteps,
+  readLastWritingWorkflowState,
+  syncWritingWorkflowInputToArgumentState,
+  type WritingWorkflowStepId,
+  writeLastWritingWorkflowState,
+} from '../utils/lastPageState'
 
 const defaultInput = '阅读下面材料，以“青年与时代”为主题写一篇议论文。'
 const difficultyOptions = ['基础', '提升', '高分']
 const fallbackNotice = '模型返回格式不完全规范，已整理为文本卡片展示。'
-const initialExpandedSteps = ['topic', 'ideas', 'argument', 'materials', 'outline']
+const initialExpandedSteps: WritingWorkflowStepId[] = ['topic', 'ideas', 'argument', 'materials', 'outline']
 const workflowRefineActionItems: Array<RefineActionItem<WritingWorkflowRefineAction>> = [
-  { id: 'optimizeOutline', label: '优化大纲', Icon: ListChecks },
+  { id: 'optimizeTopic', label: '优化审题', Icon: SearchCheck },
+  { id: 'deepenIdeas', label: '立意更深刻', Icon: Sparkles },
   { id: 'replaceIdeas', label: '换一组立意', Icon: RefreshCw },
+  { id: 'strengthenArguments', label: '强化论点', Icon: Target },
   { id: 'addMaterials', label: '补充素材', Icon: BookOpenCheck },
+  { id: 'optimizeOutline', label: '优化大纲', Icon: ListChecks },
+  { id: 'lowerDifficulty', label: '降低难度', Icon: SlidersHorizontal },
 ]
 
-type WorkflowStepId = (typeof initialExpandedSteps)[number]
+type WorkflowStepId = WritingWorkflowStepId
 type WorkflowTone = 'blue' | 'purple' | 'teal' | 'orange' | 'indigo'
 
 function asTextArray(values: ResultTextItem[] | undefined) {
@@ -271,18 +283,38 @@ function WritingWorkflowCards({
 }
 
 function WritingWorkflowPage() {
-  const [input, setInput] = useState(defaultInput)
-  const [difficulty, setDifficulty] = useState('提升')
-  const [resultText, setResultText] = useState('')
-  const [structuredResult, setStructuredResult] = useState<WritingWorkflowResult | null>(null)
-  const [isTextFallback, setIsTextFallback] = useState(false)
-  const [expandedSteps, setExpandedSteps] = useState<WorkflowStepId[]>(initialExpandedSteps)
+  const [initialPageState] = useState(() => readLastWritingWorkflowState())
+  const [input, setInput] = useState(initialPageState.input || defaultInput)
+  const [difficulty, setDifficulty] = useState(initialPageState.difficulty || '提升')
+  const [resultText, setResultText] = useState(initialPageState.resultText || '')
+  const [structuredResult, setStructuredResult] = useState<WritingWorkflowResult | null>(
+    initialPageState.structuredResult || null,
+  )
+  const [isTextFallback, setIsTextFallback] = useState(Boolean(initialPageState.isTextFallback))
+  const [expandedSteps, setExpandedSteps] = useState<WorkflowStepId[]>(() =>
+    normalizeWritingWorkflowSteps(initialPageState.expandedSteps),
+  )
   const [isLoading, setIsLoading] = useState(false)
   const [refiningAction, setRefiningAction] = useState<WritingWorkflowRefineAction | null>(null)
   const [error, setError] = useState('')
   const [copyStatus, setCopyStatus] = useState('')
   const isBusy = isLoading || refiningAction !== null
   const studentLearningMode = getStudentLearningMode()
+
+  useEffect(() => {
+    writeLastWritingWorkflowState({
+      input,
+      difficulty,
+      resultText,
+      structuredResult,
+      isTextFallback,
+      expandedSteps,
+    })
+  }, [difficulty, expandedSteps, input, isTextFallback, resultText, structuredResult])
+
+  useEffect(() => {
+    syncWritingWorkflowInputToArgumentState(input)
+  }, [input])
 
   const handleToggleStep = (id: WorkflowStepId) => {
     setExpandedSteps((current) => (current.includes(id) ? current.filter((item) => item !== id) : [...current, id]))

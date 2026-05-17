@@ -30,8 +30,10 @@ import { getDemoMode, getStudentLearningMode } from '../services/settingsService
 import type { EssayDiagnosisResult } from '../types/results'
 import { exportResultFile } from '../utils/exportFile'
 import type { ResultExportFormat } from '../utils/exportFormatter'
+import { normalizeEssayDiagnosisResult } from '../utils/essayDiagnosisScoring'
 import { formatEssayDiagnosisResult } from '../utils/resultText'
 
+const defaultEssayTopic = '请以“成长”为话题，结合自己的经历或思考，写一篇文章。'
 const defaultEssayContent = `成长是一场漫长的旅行。在这条路上，我们会遇到许多风景，也会遇到各种困难和挑战。
 记得那次数学考试，我因为粗心大意而失利，心情非常低落。老师并没有批评我，而是耐心地帮我分析错题，告诉我学习要细心、要坚持。
 从那以后，我学会了反思和总结，也更加努力。成长让我明白，只有经历挫折，才能变得更强大。
@@ -45,7 +47,12 @@ const diagnosisRefineActionItems: Array<RefineActionItem<DiagnosisRefineAction>>
   { id: 'generatePractice', label: '生成练习建议', Icon: ListChecks },
 ]
 
+function buildDiagnosisInput(topic: string, essay: string) {
+  return `作文题目或材料：\n${topic}\n\n学生作文内容：\n${essay}`
+}
+
 function EssayDiagnosisPage() {
+  const [essayTopic, setEssayTopic] = useState(defaultEssayTopic)
   const [essayContent, setEssayContent] = useState(defaultEssayContent)
   const [resultText, setResultText] = useState('')
   const [structuredResult, setStructuredResult] = useState<EssayDiagnosisResult | null>(null)
@@ -58,7 +65,15 @@ function EssayDiagnosisPage() {
   const studentLearningMode = getStudentLearningMode()
 
   const handleGenerate = async () => {
+    const trimmedTopic = essayTopic.trim()
     const trimmedEssay = essayContent.trim()
+    const diagnosisInput = buildDiagnosisInput(trimmedTopic, trimmedEssay)
+    const historyTitle = trimmedTopic.replace(/\s+/g, ' ').slice(0, 24)
+
+    if (!trimmedTopic) {
+      setError('请输入作文题目或材料')
+      return
+    }
 
     if (!trimmedEssay) {
       setError('请输入作文内容')
@@ -71,15 +86,16 @@ function EssayDiagnosisPage() {
     setIsTextFallback(false)
 
     if (getDemoMode()) {
-      const output = formatEssayDiagnosisResult(demoEssayDiagnosisStructuredResult)
+      const demoResult = normalizeEssayDiagnosisResult(demoEssayDiagnosisStructuredResult)
+      const output = formatEssayDiagnosisResult(demoResult)
 
-      setStructuredResult(demoEssayDiagnosisStructuredResult)
+      setStructuredResult(demoResult)
       setResultText(output)
       addHistoryItem({
         type: 'diagnosis',
         mode: 'demo',
-        title: trimmedEssay.replace(/\s+/g, ' ').slice(0, 24),
-        input: trimmedEssay,
+        title: historyTitle,
+        input: diagnosisInput,
         output,
       })
       setCopyStatus(DEMO_MODE_NOTICE)
@@ -94,9 +110,9 @@ function EssayDiagnosisPage() {
     }
 
     try {
-      const content = await chatCompletion(buildEssayDiagnosisPrompt(trimmedEssay))
+      const content = await chatCompletion(buildEssayDiagnosisPrompt({ essay: trimmedEssay, topic: trimmedTopic }))
       const parseResult = await parseModelJsonWithRepair<EssayDiagnosisResult>(content)
-      const parsedResult = parseResult.result
+      const parsedResult = parseResult.result ? normalizeEssayDiagnosisResult(parseResult.result) : null
       const output = parsedResult ? formatEssayDiagnosisResult(parsedResult) : content
 
       setStructuredResult(parsedResult)
@@ -106,8 +122,8 @@ function EssayDiagnosisPage() {
       addHistoryItem({
         type: 'diagnosis',
         mode: 'api',
-        title: trimmedEssay.replace(/\s+/g, ' ').slice(0, 24),
-        input: trimmedEssay,
+        title: historyTitle,
+        input: diagnosisInput,
         output,
       })
     } catch (caughtError) {
@@ -118,10 +134,23 @@ function EssayDiagnosisPage() {
   }
 
   const handleRefine = async (action: DiagnosisRefineAction) => {
+    const trimmedTopic = essayTopic.trim()
     const trimmedEssay = essayContent.trim()
+    const diagnosisInput = buildDiagnosisInput(trimmedTopic, trimmedEssay)
     const actionLabel = diagnosisRefineActionItems.find((item) => item.id === action)?.label || '二次优化'
+    const historyTitle = trimmedTopic.replace(/\s+/g, ' ').slice(0, 18)
 
-    if (!trimmedEssay || !resultText) {
+    if (!trimmedTopic) {
+      setError('请输入作文题目或材料')
+      return
+    }
+
+    if (!trimmedEssay) {
+      setError('请输入作文内容')
+      return
+    }
+
+    if (!resultText) {
       setError('请先生成结果后再优化')
       return
     }
@@ -131,7 +160,7 @@ function EssayDiagnosisPage() {
     setCopyStatus('')
 
     if (getDemoMode()) {
-      const demoResult = getDemoDiagnosisRefineResult(action)
+      const demoResult = normalizeEssayDiagnosisResult(getDemoDiagnosisRefineResult(action))
       const output = formatEssayDiagnosisResult(demoResult)
 
       setStructuredResult(demoResult)
@@ -140,8 +169,8 @@ function EssayDiagnosisPage() {
       addHistoryItem({
         type: 'diagnosis',
         mode: 'demo',
-        title: `${trimmedEssay.replace(/\s+/g, ' ').slice(0, 18)} · ${actionLabel}`,
-        input: trimmedEssay,
+        title: `${historyTitle} · ${actionLabel}`,
+        input: diagnosisInput,
         output,
       })
       setCopyStatus(`${DEMO_MODE_NOTICE} 优化完成。`)
@@ -158,14 +187,14 @@ function EssayDiagnosisPage() {
     try {
       const content = await chatCompletion(
         buildDiagnosisRefinePrompt({
-          originalInput: trimmedEssay,
+          originalInput: diagnosisInput,
           currentResult: structuredResult,
           currentText: resultText,
           action,
         }),
       )
       const parseResult = await parseModelJsonWithRepair<EssayDiagnosisResult>(content)
-      const parsedResult = parseResult.result
+      const parsedResult = parseResult.result ? normalizeEssayDiagnosisResult(parseResult.result) : null
       const output = parsedResult ? formatEssayDiagnosisResult(parsedResult) : content
 
       setStructuredResult(parsedResult)
@@ -175,8 +204,8 @@ function EssayDiagnosisPage() {
       addHistoryItem({
         type: 'diagnosis',
         mode: 'api',
-        title: `${trimmedEssay.replace(/\s+/g, ' ').slice(0, 18)} · ${actionLabel}`,
-        input: trimmedEssay,
+        title: `${historyTitle} · ${actionLabel}`,
+        input: diagnosisInput,
         output,
       })
     } catch (caughtError) {
@@ -192,7 +221,7 @@ function EssayDiagnosisPage() {
     }
 
     try {
-      await navigator.clipboard.writeText(resultText)
+      await navigator.clipboard.writeText(`${buildDiagnosisInput(essayTopic.trim(), essayContent.trim())}\n\n${resultText}`)
       setCopyStatus('已复制诊断报告')
     } catch {
       setError('复制失败，请手动复制')
@@ -205,10 +234,12 @@ function EssayDiagnosisPage() {
     }
 
     try {
+      const trimmedTopic = essayTopic.trim()
+      const trimmedEssay = essayContent.trim()
       const result = await exportResultFile(format, '作文诊断报告', {
           typeLabel: '作文诊断助手',
-          title: essayContent.trim().replace(/\s+/g, ' ').slice(0, 24) || '作文诊断报告',
-          input: essayContent.trim(),
+          title: trimmedTopic.replace(/\s+/g, ' ').slice(0, 24) || '作文诊断报告',
+          input: buildDiagnosisInput(trimmedTopic, trimmedEssay),
           output: resultText,
         })
 
@@ -235,6 +266,19 @@ function EssayDiagnosisPage() {
         <div className="card-title">
           <span className="small-title-icon is-blue">
             <FileText size={19} />
+          </span>
+          作文题目 / 材料
+        </div>
+        <textarea
+          aria-label="作文题目或材料"
+          className="diagnosis-topic-textarea"
+          onChange={(event) => setEssayTopic(event.target.value)}
+          placeholder="请输入作文题目、材料或写作要求"
+          value={essayTopic}
+        />
+        <div className="card-title diagnosis-content-title">
+          <span className="small-title-icon is-orange">
+            <PenTool size={19} />
           </span>
           作文内容
         </div>

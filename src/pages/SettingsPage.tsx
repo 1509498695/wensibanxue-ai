@@ -138,6 +138,19 @@ function SettingsPage() {
     }, 1800)
   }
 
+  const updateAndSaveConfig = <K extends keyof AppSettings>(key: K, value: AppSettings[K]) => {
+    setConfig((current) => {
+      const nextConfig = {
+        ...current,
+        [key]: value,
+      }
+
+      void saveAppSettings(nextConfig).catch(() => showToast('配置保存失败，请稍后重试'))
+
+      return nextConfig
+    })
+  }
+
   const handleSave = async () => {
     await saveAppSettings(config)
     setShowApiKey(false)
@@ -368,7 +381,7 @@ function SettingsPage() {
                     <button
                       className={`chip${config.defaultDifficulty === difficulty ? ' is-active' : ''}`}
                       key={difficulty}
-                      onClick={() => updateConfig('defaultDifficulty', difficulty)}
+                      onClick={() => updateAndSaveConfig('defaultDifficulty', difficulty)}
                       type="button"
                     >
                       {difficulty}
@@ -385,7 +398,7 @@ function SettingsPage() {
                 <button
                   aria-checked={config.demoMode}
                   className={`switch${config.demoMode ? ' is-on' : ''}`}
-                  onClick={() => updateConfig('demoMode', !config.demoMode)}
+                  onClick={() => updateAndSaveConfig('demoMode', !config.demoMode)}
                   role="switch"
                   type="button"
                 >
@@ -405,7 +418,7 @@ function SettingsPage() {
                 <button
                   aria-checked={config.autoRepairJson}
                   className={`switch${config.autoRepairJson ? ' is-on' : ''}`}
-                  onClick={() => updateConfig('autoRepairJson', !config.autoRepairJson)}
+                  onClick={() => updateAndSaveConfig('autoRepairJson', !config.autoRepairJson)}
                   role="switch"
                   type="button"
                 >
@@ -425,7 +438,7 @@ function SettingsPage() {
                 <button
                   aria-checked={config.studentLearningMode}
                   className={`switch${config.studentLearningMode ? ' is-on' : ''}`}
-                  onClick={() => updateConfig('studentLearningMode', !config.studentLearningMode)}
+                  onClick={() => updateAndSaveConfig('studentLearningMode', !config.studentLearningMode)}
                   role="switch"
                   type="button"
                 >
@@ -441,7 +454,7 @@ function SettingsPage() {
                 <button
                   aria-checked={config.saveHistory}
                   className={`switch${config.saveHistory ? ' is-on' : ''}`}
-                  onClick={() => updateConfig('saveHistory', !config.saveHistory)}
+                  onClick={() => updateAndSaveConfig('saveHistory', !config.saveHistory)}
                   role="switch"
                   type="button"
                 >
@@ -457,7 +470,7 @@ function SettingsPage() {
                 <button
                   aria-checked={config.showHomeOnLaunch}
                   className={`switch${config.showHomeOnLaunch ? ' is-on' : ''}`}
-                  onClick={() => updateConfig('showHomeOnLaunch', !config.showHomeOnLaunch)}
+                  onClick={() => updateAndSaveConfig('showHomeOnLaunch', !config.showHomeOnLaunch)}
                   role="switch"
                   type="button"
                 >

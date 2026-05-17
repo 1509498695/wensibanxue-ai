@@ -9,7 +9,11 @@ declare global {
     model?: string
     temperature?: string
     maxTokens?: string
+    defaultDifficulty?: string
+    saveHistory?: boolean
+    showHomeOnLaunch?: boolean
     demoMode?: boolean
+    studentLearningMode?: boolean
     studentMode?: boolean
     autoRepairJson?: boolean
     customApiBaseUrl?: string

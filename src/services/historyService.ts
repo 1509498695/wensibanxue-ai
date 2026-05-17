@@ -17,6 +17,7 @@ const MAX_HISTORY_ITEMS = 50
 
 const legacyTypeMap: Record<string, HistoryItemType> = {
   审题立意: 'topic',
+  升格思辨: 'topic',
   论点生成: 'argument',
   素材推荐: 'material',
   作文诊断: 'diagnosis',

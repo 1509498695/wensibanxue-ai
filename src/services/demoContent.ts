@@ -101,15 +101,28 @@ const legacyDemoMaterialRecommendStructuredResult: MaterialRecommendResult = {
 }
 
 const legacyDemoEssayDiagnosisStructuredResult: EssayDiagnosisResult = {
-  totalScore: 49,
-  level: '良好',
-  percentile: '整体表现处于较好水平',
+  totalScore: 44,
+  level: '二等',
+  percentile: '内容二等、表达一等、特征二等，整体处于中等偏上水平',
   dimensionScores: [
-    { label: '审题立意', score: 48 },
-    { label: '结构层次', score: 51 },
-    { label: '论证逻辑', score: 47 },
-    { label: '素材运用', score: 46 },
-    { label: '语言表达', score: 52 },
+    {
+      label: '内容',
+      score: 15,
+      grade: '二等',
+      basis: '符合成长主题，中心较明确，但内容主要依赖个人经历，充实度还可提升。',
+    },
+    {
+      label: '表达',
+      score: 16,
+      grade: '一等',
+      basis: '基本符合文体要求，结构清楚，语言流畅，叙述自然。',
+    },
+    {
+      label: '特征',
+      score: 13,
+      grade: '二等',
+      basis: '有一定反思意识和表达亮点，但深刻性、丰富性与创意仍可加强。',
+    },
   ],
   mainProblems: [
     { title: '论证不够深入', description: '文章整体较为平实，缺少对“成长为什么需要挫折”的进一步分析。' },
@@ -310,12 +323,28 @@ export function getDemoDiagnosisRefineResult(action: string): EssayDiagnosisResu
       '那次失利像一盏突然亮起的灯，照见了我学习中的粗心与浮躁。重新整理错题时，我才明白：成长不是避开挫折，而是在挫折面前学会停下、回看，再更坚定地出发。'
   } else if (action === 'strengthenLogic') {
     result.dimensionScores = [
-      { label: '审题立意', score: 49 },
-      { label: '结构层次', score: 50 },
-      { label: '论证逻辑', score: 50 },
-      { label: '素材运用', score: 46 },
-      { label: '语言表达', score: 52 },
+      {
+        label: '内容',
+        score: 16,
+        grade: '一等',
+        basis: '中心更突出，内容围绕成长与挫折展开更充分，思想健康、情感真挚。',
+      },
+      {
+        label: '表达',
+        score: 16,
+        grade: '一等',
+        basis: '结构更严谨，段落衔接更自然，语言表达保持流畅。',
+      },
+      {
+        label: '特征',
+        score: 14,
+        grade: '二等',
+        basis: '反思有所加深，有一定文采和新意，但丰富性仍可继续提升。',
+      },
     ]
+    result.totalScore = 46
+    result.level = '二等'
+    result.percentile = '内容一等、表达一等、特征二等，整体表现较好'
     result.suggestions = [...(result.suggestions || []), '每个事例后增加“为什么能证明观点”的分析句，避免只叙述不论证。']
   } else if (action === 'addMaterials') {
     result.suggestions = [...(result.suggestions || []), '可补充张桂梅、苏炳添等较熟悉素材，用来支撑“挫折促进成长”的观点。']
@@ -334,7 +363,31 @@ export function getDemoDiagnosisRefineResult(action: string): EssayDiagnosisResu
 export function getDemoWritingWorkflowRefineResult(action: string): WritingWorkflowResult {
   const result = cloneDemoResult(demoWritingWorkflowStructuredResult)
 
-  if (action === 'optimizeOutline') {
+  if (action === 'optimizeTopic') {
+    result.topicAnalysis = {
+      keywords: ['青年', '时代', '责任', '行动', '双向成就'],
+      coreTopic: '材料重点不是泛泛歌颂青春，而是要求写清青年如何在时代命题中确认责任，并以行动实现个人成长与公共价值。',
+      warnings: [
+        '不要把“时代”只当背景词，要写出它对青年选择的具体影响。',
+        '不要只写热血口号，要落到责任、能力和行动三个层面。',
+        '注意写清青年与时代的双向关系，而不是单向赞美青年。',
+      ],
+    }
+  } else if (action === 'deepenIdeas') {
+    result.ideas = [
+      '真正的青春价值，不在脱离时代的自我证明，而在回应公共需要时完成自我超越。',
+      '时代命题既是青年的考卷，也是青年锤炼责任、能力与格局的课堂。',
+      '青年与时代的关系不是被动适应，而是在主动担当中彼此成就。',
+    ]
+    result.argumentStructure = {
+      centralArgument: '青年唯有把个人追求接入时代需要，才能在担当中实现自我与时代的双向成就。',
+      subArguments: [
+        { point: '看见时代需要，是青年确立责任的起点。', logic: '先明确责任来源', material: '时代青年群像' },
+        { point: '回应时代需要，是青年锤炼能力的过程。', logic: '再展开行动路径', material: '航天青年团队' },
+        { point: '成就时代进步，是青年实现价值的归宿。', logic: '最后完成价值升华', material: '基层服务、文化传承' },
+      ],
+    }
+  } else if (action === 'optimizeOutline') {
     result.outline = {
       title: '以担当回应时代，以奋斗定义青春',
       opening: '从“时代给青年出题，青年以行动作答”切入，快速点明材料核心。',
@@ -374,12 +427,50 @@ export function getDemoWritingWorkflowRefineResult(action: string): WritingWorkf
         { point: '个人价值在回应时代中被放大。', logic: '完成价值升华', material: '文化传承' },
       ],
     }
+  } else if (action === 'strengthenArguments') {
+    result.argumentStructure = {
+      centralArgument: '青年要在时代坐标中看见责任、锤炼本领、落实行动，才能让青春真正有为。',
+      subArguments: [
+        { point: '看见时代坐标，青年才能明确“为何担当”。', logic: '从认识层面切入', material: '国家发展与青年选择' },
+        { point: '锤炼过硬本领，青年才能回答“凭何担当”。', logic: '从能力层面递进', material: '科研攻关、技能成长' },
+        { point: '投身具体行动，青年才能证明“如何担当”。', logic: '从实践层面落地', material: '基层服务、志愿行动' },
+      ],
+    }
   } else if (action === 'addMaterials') {
     result.materials = [
       ...(result.materials || []),
       { title: '苏翊鸣', description: '在热爱与训练中突破自我，体现青年追梦与时代机遇的结合。', angle: '个人理想与时代平台' },
       { title: '数字文博青年团队', description: '用新技术激活传统文化，让文化传承更贴近当代生活。', angle: '守正创新' },
     ]
+  } else if (action === 'lowerDifficulty') {
+    result.topicAnalysis = {
+      keywords: ['青年', '时代', '责任', '行动'],
+      coreTopic: '题目主要讨论青年怎样承担时代责任，并在行动中实现成长。',
+      warnings: ['不要只喊口号，要写具体行动。', '不要脱离“青年”和“时代”两个关键词。'],
+    }
+    result.ideas = [
+      '青年要承担责任，在时代需要中实现自己的价值。',
+      '把个人理想和时代发展结合起来，青春才更有意义。',
+      '担当不是口号，而是一步步做好具体事情。',
+    ]
+    result.argumentStructure = {
+      centralArgument: '青年要用实际行动回应时代需要，让青春更有价值。',
+      subArguments: [
+        { point: '青年要看见时代需要。', logic: '先写为什么要担当', material: '时代青年群像' },
+        { point: '青年要提升能力、主动行动。', logic: '再写怎样担当', material: '航天青年、志愿服务' },
+        { point: '青年能在担当中获得成长。', logic: '最后写意义', material: '基层服务、乡村振兴' },
+      ],
+    }
+    result.outline = {
+      title: '用行动回应时代',
+      opening: '从材料中的青年责任切入，提出青年应主动担当。',
+      bodyParagraphs: [
+        { title: '主体段一', topicSentence: '青年要先看见时代需要。', content: '说明个人成长不能脱离社会背景。', material: '黄文秀' },
+        { title: '主体段二', topicSentence: '担当要落实为具体行动。', content: '写清青年需要能力和坚持。', material: '航天青年团队' },
+        { title: '主体段三', topicSentence: '行动能让青春更有价值。', content: '总结青年和时代可以互相成就。', material: '志愿服务' },
+      ],
+      ending: '回扣青年责任，号召以行动书写青春。',
+    }
   }
 
   return result
@@ -479,15 +570,13 @@ export const demoMaterialRecommendResult = `## 人物事例
 
 export const demoEssayDiagnosisResult = `## 综合评分
 
-49 / 60，整体达到“良好”水平。文章主题明确，情感真诚，但论证深度和素材支撑仍有提升空间。
+44 / 60，整体达到“二等”水平。文章主题明确，情感真诚，但内容充实度和发展特征仍有提升空间。
 
 ## 维度评分
 
-- 审题立意：48
-- 结构层次：51
-- 论证逻辑：47
-- 素材运用：46
-- 语言表达：52
+- 内容：15 / 20（二等）- 符合成长主题，中心较明确，但内容主要依赖个人经历，充实度还可提升。
+- 表达：16 / 20（一等）- 基本符合文体要求，结构清楚，语言流畅，叙述自然。
+- 特征：13 / 20（二等）- 有一定反思意识和表达亮点，但深刻性、丰富性与创意仍可加强。
 
 ## 主要问题
 
@@ -518,7 +607,7 @@ export const demoRecentItems: Array<{
   type: HistoryItemType
 }> = [
   { title: '谈青年与责任担当', tag: '论点生成', tone: 'purple', time: '演示记录', type: 'argument' },
-  { title: '科技发展利大于弊吗？', tag: '审题立意', tone: 'blue', time: '演示记录', type: 'topic' },
+  { title: '责任的利弊与边界', tag: '升格思辨', tone: 'blue', time: '演示记录', type: 'topic' },
   { title: '坚守本心，方得始终', tag: '作文诊断', tone: 'orange', time: '演示记录', type: 'diagnosis' },
   { title: '责任与担当素材推荐', tag: '素材推荐', tone: 'teal', time: '演示记录', type: 'material' },
   { title: '青年与时代五步写作', tag: '五步写作', tone: 'blue', time: '演示记录', type: 'workflow' },

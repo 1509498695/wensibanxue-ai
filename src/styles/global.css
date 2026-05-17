@@ -886,6 +886,7 @@ textarea::-webkit-scrollbar-thumb:hover,
 .topic-textarea,
 .argument-textarea,
 .workflow-textarea,
+.diagnosis-topic-textarea,
 .diagnosis-textarea,
 textarea {
   width: 100%;
@@ -3291,6 +3292,249 @@ textarea {
   cursor: wait;
 }
 
+.keyword-follow-up-card {
+  display: grid;
+  gap: 16px;
+  margin: 14px 0 18px;
+  padding: 18px 20px;
+  border: 1px solid rgba(153, 246, 228, 0.52);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.82);
+  box-shadow: 0 14px 32px rgba(15, 118, 110, 0.07);
+}
+
+.keyword-follow-up-grid {
+  display: grid;
+  grid-template-columns: minmax(220px, 0.85fr) minmax(260px, 1.15fr);
+  gap: 14px;
+  align-items: start;
+}
+
+.keyword-follow-up-field,
+.keyword-follow-up-keywords,
+.keyword-follow-up-questions,
+.keyword-follow-up-result,
+.keyword-follow-up-answer {
+  min-width: 0;
+}
+
+.keyword-follow-up-field {
+  display: grid;
+  gap: 8px;
+}
+
+.keyword-follow-up-field > span,
+.keyword-follow-up-label,
+.keyword-follow-up-answer > span,
+.keyword-follow-up-answer-header > span,
+.keyword-follow-up-question-preview > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--color-muted);
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.keyword-follow-up-input {
+  width: 100%;
+  min-height: 42px;
+  padding: 0 13px;
+  border: 1px solid rgba(203, 213, 225, 0.92);
+  border-radius: 12px;
+  color: var(--color-text);
+  background: rgba(255, 255, 255, 0.92);
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.keyword-follow-up-input:focus {
+  border-color: rgba(20, 184, 166, 0.72);
+  box-shadow: 0 0 0 4px rgba(20, 184, 166, 0.12);
+}
+
+.keyword-follow-up-keywords,
+.keyword-follow-up-questions {
+  display: grid;
+  gap: 9px;
+}
+
+.keyword-follow-up-chip-list,
+.keyword-follow-up-question-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.keyword-chip,
+.keyword-question-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 34px;
+  border: 1px solid rgba(153, 246, 228, 0.74);
+  border-radius: 999px;
+  color: #0f766e;
+  background: linear-gradient(135deg, rgba(240, 253, 250, 0.96), rgba(255, 255, 255, 0.9));
+  font-size: 13px;
+  font-weight: 900;
+  box-shadow: 0 8px 18px rgba(15, 118, 110, 0.06);
+}
+
+.keyword-chip {
+  padding: 0 12px;
+}
+
+.keyword-question-button {
+  padding: 0 13px;
+}
+
+.keyword-chip:hover:not(:disabled),
+.keyword-question-button:hover:not(:disabled) {
+  border-color: rgba(13, 148, 136, 0.56);
+  transform: translateY(-1px);
+}
+
+.keyword-chip.is-active,
+.keyword-question-button.is-active {
+  border-color: rgba(13, 148, 136, 0.72);
+  color: #0f766e;
+  background: #ccfbf1;
+}
+
+.keyword-question-button .loading-spinner {
+  width: 14px;
+  height: 14px;
+  border-color: rgba(13, 148, 136, 0.22);
+  border-top-color: #0f766e;
+}
+
+.keyword-question-button.is-loading {
+  cursor: wait;
+}
+
+.keyword-follow-up-result {
+  display: grid;
+  gap: 12px;
+  padding-top: 2px;
+}
+
+.keyword-follow-up-question-preview {
+  display: grid;
+  gap: 7px;
+  padding: 12px 14px;
+  border: 1px solid rgba(153, 246, 228, 0.64);
+  border-radius: 14px;
+  background: rgba(240, 253, 250, 0.7);
+}
+
+.keyword-follow-up-question-preview p {
+  margin: 0;
+  color: var(--color-heading);
+  font-size: 15px;
+  font-weight: 900;
+}
+
+.keyword-follow-up-summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 2px;
+}
+
+.keyword-follow-up-summary span {
+  color: var(--color-muted);
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.keyword-follow-up-summary-list {
+  display: flex;
+  flex: 1;
+  flex-wrap: wrap;
+  gap: 7px;
+  min-width: 0;
+}
+
+.keyword-follow-up-summary strong {
+  padding: 5px 10px;
+  border: 1px solid rgba(45, 212, 191, 0.55);
+  border-radius: 999px;
+  color: #0f766e;
+  background: rgba(204, 251, 241, 0.78);
+  font-size: 13px;
+  font-weight: 950;
+  overflow-wrap: anywhere;
+}
+
+.keyword-follow-up-answer {
+  display: grid;
+  gap: 4px;
+}
+
+.keyword-follow-up-answer-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.keyword-follow-up-regenerate {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 32px;
+  padding: 0 12px;
+  border: 1px solid rgba(153, 246, 228, 0.74);
+  border-radius: 999px;
+  color: #0f766e;
+  background: rgba(240, 253, 250, 0.92);
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.keyword-follow-up-regenerate .loading-spinner {
+  width: 14px;
+  height: 14px;
+  border-color: rgba(13, 148, 136, 0.22);
+  border-top-color: #0f766e;
+}
+
+.keyword-follow-up-answer .markdown-body {
+  margin-top: 6px;
+}
+
+.upgrade-thinking-note {
+  margin: 0;
+  color: var(--color-muted);
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.6;
+}
+
+.upgrade-thinking-result {
+  padding: 14px 16px;
+  border: 1px solid rgba(153, 246, 228, 0.52);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.86);
+}
+
+.upgrade-thinking-empty {
+  display: grid;
+  gap: 10px;
+}
+
+.upgrade-thinking-empty p {
+  margin: 0;
+  color: var(--color-muted);
+  font-size: 14px;
+  font-weight: 650;
+  line-height: 1.7;
+}
+
 .favorite-star-button {
   display: inline-flex;
   width: fit-content;
@@ -3455,6 +3699,17 @@ button:disabled {
 
 .analysis-card {
   min-height: 328px;
+}
+
+.argument-analysis-column {
+  display: grid;
+  gap: 16px;
+  align-content: start;
+}
+
+.argument-analysis-column .topic-direction-card,
+.argument-analysis-column .topic-warning-card {
+  min-height: 0;
 }
 
 .middle-result-column {
@@ -5399,6 +5654,26 @@ select.settings-input {
   border-radius: 18px;
 }
 
+.diagnosis-content-title {
+  margin-top: 4px;
+}
+
+.diagnosis-topic-textarea {
+  width: 100%;
+  min-height: 76px;
+  padding: 12px 14px;
+  border: 1px solid rgba(147, 197, 253, 0.78);
+  border-radius: 14px;
+  outline: 0;
+  color: var(--color-text);
+  background: linear-gradient(180deg, #ffffff, #fbfdff);
+  resize: vertical;
+  font-family: inherit;
+  font-size: 14.5px;
+  font-weight: 700;
+  line-height: 1.65;
+}
+
 .diagnosis-textarea {
   width: 100%;
   min-height: 148px;
@@ -5542,8 +5817,8 @@ select.settings-input {
 
 .dimension-row {
   display: grid;
-  grid-template-columns: 26px 72px minmax(0, 1fr) 34px;
-  gap: 10px;
+  grid-template-columns: 26px 52px minmax(0, 1fr) 48px auto;
+  gap: 8px 10px;
   align-items: center;
   color: var(--color-text);
   font-size: 13px;
@@ -5577,6 +5852,25 @@ select.settings-input {
 
 .dimension-progress {
   height: 6px;
+}
+
+.dimension-grade {
+  width: max-content;
+  padding: 2px 8px;
+  border-radius: 999px;
+  color: var(--color-primary-600);
+  background: #eff6ff;
+  font-size: 12px;
+  font-weight: 950;
+}
+
+.dimension-basis {
+  grid-column: 2 / -1;
+  margin: -2px 0 0;
+  color: var(--color-muted);
+  font-size: 12px;
+  font-weight: 650;
+  line-height: 1.5;
 }
 
 .small-title-icon.is-red {
@@ -8193,5 +8487,811 @@ textarea::-webkit-scrollbar-thumb:hover {
     min-width: 0;
     max-width: 360px;
     height: 160px;
+  }
+}
+
+/* Compact layout overrides for the argument generator page. */
+.argument-page {
+  gap: 10px;
+}
+
+.argument-page .argument-header {
+  min-height: 126px;
+  padding: 18px 24px;
+  gap: 16px;
+}
+
+.argument-page .page-hero__icon {
+  width: 66px;
+  height: 66px;
+  border-radius: 20px;
+}
+
+.argument-page .page-hero__copy h1 {
+  font-size: clamp(30px, 2.35vw, 36px);
+  line-height: 1.1;
+}
+
+.argument-page .page-hero__copy p {
+  max-width: 640px;
+  margin-top: 6px;
+  font-size: 15px;
+  line-height: 1.55;
+}
+
+.argument-page .hero-illustration,
+.argument-page .hero-illustration.is-hero {
+  height: 128px;
+}
+
+.argument-page .argument-input-card {
+  padding: 12px 14px;
+  border-radius: 16px;
+}
+
+.argument-page .argument-textarea-wrap {
+  margin-top: 8px;
+}
+
+.argument-page .argument-textarea {
+  height: 74px;
+  min-height: 74px;
+  max-height: 150px;
+  padding: 11px 14px 24px;
+  line-height: 1.55;
+}
+
+.argument-page .input-meta-row {
+  margin-top: 6px;
+  font-size: 12px;
+}
+
+.argument-page .argument-controls {
+  grid-template-columns: minmax(0, 1fr) minmax(170px, 220px);
+  gap: 12px;
+  margin-top: 10px;
+}
+
+.argument-page .chip {
+  min-width: 62px;
+  min-height: 32px;
+  padding-inline: 12px;
+}
+
+.argument-page .generate-button {
+  min-height: 38px;
+  border-radius: 12px;
+}
+
+.argument-page .result-actions,
+.argument-page .app-action-bar {
+  margin: 0;
+  gap: 8px;
+}
+
+.argument-page .result-actions .secondary-button,
+.argument-page .result-actions .export-menu-button {
+  min-height: 34px;
+  padding-inline: 12px;
+}
+
+.argument-page .refine-action-bar {
+  gap: 8px 10px;
+  margin: 6px 0 8px;
+  padding: 9px 10px;
+  border-radius: 14px;
+}
+
+.argument-page .refine-action-list {
+  gap: 7px;
+}
+
+.argument-page .refine-pill-button {
+  min-height: 30px;
+  padding-inline: 10px;
+}
+
+.argument-page .keyword-follow-up-card {
+  gap: 11px;
+  margin: 6px 0 10px;
+  padding: 12px 14px;
+  border-radius: 16px;
+}
+
+.argument-page .keyword-follow-up-grid {
+  grid-template-columns: minmax(220px, 0.72fr) minmax(360px, 1.28fr);
+  gap: 10px;
+}
+
+.argument-page .keyword-follow-up-field,
+.argument-page .keyword-follow-up-keywords,
+.argument-page .keyword-follow-up-questions {
+  gap: 6px;
+}
+
+.argument-page .keyword-follow-up-input {
+  min-height: 36px;
+  padding-inline: 11px;
+}
+
+.argument-page .keyword-follow-up-chip-list,
+.argument-page .keyword-follow-up-question-list {
+  gap: 6px;
+}
+
+.argument-page .keyword-chip,
+.argument-page .keyword-question-button {
+  min-height: 30px;
+  padding-inline: 10px;
+  font-size: 12.5px;
+}
+
+.argument-page .keyword-follow-up-result {
+  gap: 8px;
+}
+
+.argument-page .keyword-follow-up-question-preview {
+  gap: 5px;
+  padding: 9px 11px;
+  border-radius: 12px;
+}
+
+.argument-page .keyword-follow-up-question-preview p {
+  font-size: 14px;
+}
+
+.argument-page .keyword-follow-up-summary {
+  gap: 6px;
+}
+
+.argument-page .keyword-follow-up-summary strong {
+  padding: 4px 8px;
+  font-size: 12.5px;
+}
+
+.argument-page .keyword-follow-up-answer .markdown-body {
+  margin-top: 2px;
+}
+
+.argument-page .argument-results-grid {
+  grid-template-columns: minmax(260px, 0.86fr) minmax(300px, 1fr) minmax(390px, 1.26fr);
+  gap: 10px;
+}
+
+.argument-page .argument-analysis-column,
+.argument-page .middle-result-column {
+  gap: 10px;
+}
+
+.argument-page .analysis-card,
+.argument-page .thesis-card,
+.argument-page .material-card,
+.argument-page .structure-card,
+.argument-page .argument-analysis-column .topic-direction-card,
+.argument-page .argument-analysis-column .topic-warning-card {
+  min-height: 0;
+  padding: 12px 14px;
+  border-radius: 14px;
+}
+
+.argument-page .card-title {
+  gap: 8px;
+  font-size: 15px;
+}
+
+.argument-page .small-title-icon {
+  width: 24px;
+  height: 24px;
+  border-radius: 7px;
+}
+
+.argument-page .analysis-section {
+  margin-top: 10px;
+}
+
+.argument-page .analysis-section h3 {
+  margin-bottom: 6px;
+  font-size: 13.5px;
+}
+
+.argument-page .keyword-list {
+  gap: 6px;
+}
+
+.argument-page .tag {
+  min-height: 26px;
+  padding-inline: 9px;
+  font-size: 12.5px;
+}
+
+.argument-page .analysis-list {
+  gap: 6px;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.argument-page .analysis-list li {
+  padding-left: 12px;
+}
+
+.argument-page .analysis-list li::before {
+  top: 8px;
+}
+
+.argument-page .direction-list {
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.argument-page .direction-list li {
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 8px;
+  padding: 9px 10px;
+}
+
+.argument-page .direction-list li > span {
+  min-width: 44px;
+  padding-inline: 7px;
+  font-size: 12px;
+}
+
+.argument-page .direction-list p,
+.argument-page .pitfall-list li,
+.argument-page .material-list p {
+  font-size: 13px;
+  line-height: 1.42;
+}
+
+.argument-page .pitfall-list {
+  gap: 7px;
+  margin-top: 10px;
+}
+
+.argument-page .pitfall-list li {
+  gap: 7px;
+  padding: 8px 9px;
+}
+
+.argument-page .thesis-list {
+  gap: 7px;
+  margin-top: 10px;
+}
+
+.argument-page .thesis-item {
+  grid-template-columns: 24px minmax(0, 1fr) auto;
+  gap: 8px;
+  min-height: 30px;
+  padding: 4px 8px 4px 0;
+}
+
+.argument-page .thesis-item > span {
+  width: 24px;
+  height: 24px;
+  font-size: 12px;
+}
+
+.argument-page .thesis-item p {
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+.argument-page .material-list {
+  gap: 7px;
+  margin-top: 10px;
+}
+
+.argument-page .recommended-thesis {
+  margin-top: 10px;
+  padding: 10px 12px;
+  border-radius: 12px;
+}
+
+.argument-page .recommended-thesis span {
+  margin-bottom: 5px;
+  font-size: 12px;
+}
+
+.argument-page .recommended-thesis strong {
+  font-size: 14px;
+  line-height: 1.38;
+}
+
+.argument-page .timeline-list {
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.argument-page .timeline-list li {
+  grid-template-columns: 34px minmax(0, 1fr) auto;
+  gap: 8px;
+}
+
+.argument-page .timeline-list li > span {
+  width: 30px;
+  height: 30px;
+  font-size: 13px;
+}
+
+.argument-page .timeline-list li:not(:last-child)::after {
+  top: 32px;
+  left: 14px;
+  height: calc(100% + 2px);
+}
+
+.argument-page .timeline-list p {
+  padding: 9px 10px;
+  font-size: 13px;
+  line-height: 1.42;
+}
+
+.argument-page .favorite-star-button {
+  min-height: 26px;
+  padding-inline: 8px;
+  font-size: 11.5px;
+}
+
+@media (max-width: 1368px), (max-height: 820px) {
+  .argument-page {
+    gap: 8px;
+  }
+
+  .argument-page .argument-header {
+    min-height: 108px;
+    padding: 16px 20px;
+  }
+
+  .argument-page .argument-textarea {
+    height: 66px;
+    min-height: 66px;
+  }
+
+  .argument-page .argument-results-grid {
+    grid-template-columns: minmax(0, 0.88fr) minmax(0, 1fr) minmax(0, 1.2fr);
+    gap: 9px;
+  }
+}
+
+@media (max-width: 1240px) {
+  .argument-page .argument-results-grid {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+
+  .argument-page .structure-card {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 900px) {
+  .argument-page .argument-results-grid,
+  .argument-page .keyword-follow-up-grid,
+  .argument-page .argument-controls {
+    grid-template-columns: 1fr;
+  }
+
+  .argument-page .generate-button {
+    width: 100%;
+  }
+}
+
+/* Full-width argument generator result layout. */
+.argument-page .argument-results-grid {
+  display: grid;
+  width: 100%;
+  max-width: none;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  align-items: start;
+  justify-items: stretch;
+  gap: 10px;
+}
+
+.argument-page .argument-results-grid > * {
+  min-width: 0;
+}
+
+.argument-page .argument-analysis-card {
+  grid-column: span 3;
+  width: 100%;
+  min-width: 0;
+}
+
+.argument-page .argument-analysis-column {
+  grid-column: span 3;
+  width: 100%;
+  min-width: 0;
+}
+
+.argument-page .middle-result-column {
+  grid-column: span 4;
+  width: 100%;
+  min-width: 0;
+}
+
+.argument-page .structure-card {
+  grid-column: span 5;
+  width: 100%;
+  min-width: 0;
+}
+
+.argument-page .argument-direction-card {
+  grid-column: span 7;
+}
+
+.argument-page .argument-warning-card {
+  grid-column: span 5;
+}
+
+.argument-page .analysis-card,
+.argument-page .thesis-card,
+.argument-page .material-card,
+.argument-page .structure-card,
+.argument-page .argument-direction-card,
+.argument-page .argument-warning-card,
+.argument-page .argument-analysis-column .topic-direction-card,
+.argument-page .argument-analysis-column .topic-warning-card {
+  width: 100%;
+  max-width: none;
+}
+
+.argument-page .middle-result-column,
+.argument-page .argument-analysis-column {
+  display: flex;
+  flex-direction: column;
+}
+
+.argument-page .structure-card {
+  justify-self: stretch;
+}
+
+.argument-page .argument-direction-card,
+.argument-page .argument-warning-card,
+.argument-page .structure-card {
+  display: grid;
+  align-content: start;
+  gap: 10px;
+}
+
+.argument-page .argument-horizontal-card-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 8px;
+  margin: 10px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.argument-page .argument-idea-card-list li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas:
+    "label action"
+    "text text";
+  gap: 7px 8px;
+  align-content: start;
+  min-height: 104px;
+  padding: 10px 11px;
+  border: 1px solid rgba(153, 246, 228, 0.78);
+  border-radius: 13px;
+  background:
+    linear-gradient(135deg, rgba(240, 253, 250, 0.95), rgba(255, 255, 255, 0.88)),
+    #ffffff;
+  box-shadow: 0 10px 24px rgba(20, 184, 166, 0.06);
+}
+
+.argument-page .argument-idea-card-list li > span {
+  grid-area: label;
+  width: max-content;
+  min-width: 0;
+  padding: 3px 9px;
+  border-radius: 999px;
+  color: #0f766e;
+  background: #ccfbf1;
+  font-size: 12px;
+  font-weight: 950;
+}
+
+.argument-page .argument-idea-card-list li > p {
+  grid-area: text;
+  margin: 0;
+  color: var(--color-heading);
+  font-size: 13px;
+  font-weight: 900;
+  line-height: 1.42;
+}
+
+.argument-page .argument-idea-card-list .favorite-star-button {
+  grid-area: action;
+  justify-self: end;
+}
+
+.argument-page .argument-warning-list {
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+}
+
+.argument-page .argument-warning-list li {
+  display: grid;
+  grid-template-columns: 22px minmax(0, 1fr);
+  gap: 8px;
+  align-items: start;
+  min-height: 76px;
+  padding: 10px 11px;
+  border: 1px solid rgba(254, 215, 170, 0.78);
+  border-radius: 13px;
+  color: var(--color-text);
+  background:
+    linear-gradient(135deg, rgba(255, 247, 237, 0.94), rgba(255, 255, 255, 0.88)),
+    #ffffff;
+  font-size: 13px;
+  font-weight: 780;
+  line-height: 1.48;
+  box-shadow: 0 10px 24px rgba(249, 115, 22, 0.06);
+}
+
+.argument-page .argument-warning-list svg {
+  margin-top: 1px;
+  color: var(--color-orange-500);
+  fill: rgba(249, 115, 22, 0.12);
+}
+
+.argument-page .argument-recommended-thesis {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 7px 10px;
+  align-items: center;
+  margin-top: 10px;
+  padding: 10px 12px;
+  text-align: left;
+}
+
+.argument-page .argument-recommended-thesis::after {
+  display: none;
+}
+
+.argument-page .argument-recommended-thesis span {
+  grid-column: 1 / -1;
+  margin: 0;
+  font-size: 12px;
+}
+
+.argument-page .argument-recommended-thesis strong {
+  min-width: 0;
+  font-size: 14px;
+  line-height: 1.42;
+}
+
+.argument-page .argument-subargument-card-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.argument-page .argument-subargument-card {
+  display: grid;
+  grid-template-columns: 30px minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: start;
+  min-height: 112px;
+  padding: 10px 11px;
+  border: 1px solid rgba(191, 219, 254, 0.96);
+  border-radius: 13px;
+  background:
+    linear-gradient(135deg, rgba(239, 246, 255, 0.9), rgba(255, 255, 255, 0.88)),
+    #ffffff;
+  box-shadow: 0 10px 24px rgba(37, 99, 235, 0.05);
+}
+
+.argument-page .argument-subargument-index {
+  display: grid;
+  width: 28px;
+  height: 28px;
+  place-items: center;
+  border-radius: 50%;
+  color: #ffffff;
+  background: var(--gradient-orange);
+  font-size: 13px;
+  font-weight: 950;
+}
+
+.argument-page .argument-subargument-body {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+}
+
+.argument-page .argument-subargument-point,
+.argument-page .argument-subargument-detail {
+  margin: 0;
+}
+
+.argument-page .argument-subargument-point {
+  color: var(--color-heading);
+  font-size: 13px;
+  font-weight: 900;
+  line-height: 1.42;
+}
+
+.argument-page .argument-subargument-detail {
+  color: var(--color-muted);
+  font-size: 12.5px;
+  font-weight: 650;
+  line-height: 1.45;
+}
+
+.argument-page .argument-subargument-card .favorite-star-button {
+  justify-self: end;
+}
+
+@media (min-width: 1280px) {
+  .argument-page .argument-results-grid {
+    grid-template-columns: repeat(12, minmax(0, 1fr));
+  }
+
+  .argument-page .argument-analysis-card {
+    grid-column: span 3;
+  }
+
+  .argument-page .argument-analysis-column {
+    grid-column: span 3;
+  }
+
+  .argument-page .middle-result-column {
+    grid-column: span 4;
+  }
+
+  .argument-page .structure-card {
+    grid-column: span 5;
+  }
+
+  .argument-page .argument-direction-card {
+    grid-column: span 7;
+  }
+
+  .argument-page .argument-warning-card {
+    grid-column: span 5;
+  }
+}
+
+@media (max-width: 1279px) {
+  .argument-page .argument-results-grid {
+    grid-template-columns: repeat(12, minmax(0, 1fr));
+  }
+
+  .argument-page .argument-analysis-card {
+    grid-column: span 5;
+  }
+
+  .argument-page .argument-analysis-column {
+    grid-column: span 5;
+  }
+
+  .argument-page .middle-result-column {
+    grid-column: span 7;
+  }
+
+  .argument-page .structure-card {
+    grid-column: 1 / -1;
+  }
+
+  .argument-page .argument-direction-card {
+    grid-column: span 7;
+  }
+
+  .argument-page .argument-warning-card {
+    grid-column: span 5;
+  }
+}
+
+@media (max-width: 960px) {
+  .argument-page .argument-analysis-card,
+  .argument-page .argument-analysis-column,
+  .argument-page .middle-result-column,
+  .argument-page .structure-card,
+  .argument-page .argument-direction-card,
+  .argument-page .argument-warning-card {
+    grid-column: 1 / -1;
+  }
+}
+
+/* Writing-workflow inspired single-column result layout for the argument page. */
+.argument-page .argument-results-grid {
+  display: grid;
+  width: 100%;
+  max-width: none;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 12px;
+  align-items: stretch;
+}
+
+.argument-page .argument-results-grid > *,
+.argument-page .argument-analysis-card,
+.argument-page .thesis-card,
+.argument-page .material-card,
+.argument-page .structure-card,
+.argument-page .argument-direction-card,
+.argument-page .argument-warning-card {
+  grid-column: 1 / -1;
+  width: 100%;
+  min-width: 0;
+  max-width: none;
+}
+
+.argument-page .argument-analysis-card,
+.argument-page .thesis-card,
+.argument-page .material-card,
+.argument-page .structure-card,
+.argument-page .argument-direction-card,
+.argument-page .argument-warning-card {
+  display: grid;
+  gap: 11px;
+  align-content: start;
+  min-height: 0;
+  padding: 14px 16px;
+  border-radius: 16px;
+}
+
+.argument-page .argument-analysis-card {
+  grid-template-columns: minmax(180px, 0.34fr) minmax(0, 0.66fr);
+  gap: 10px 16px;
+}
+
+.argument-page .argument-analysis-card .card-title {
+  grid-column: 1 / -1;
+}
+
+.argument-page .argument-analysis-card .analysis-section {
+  margin-top: 0;
+}
+
+.argument-page .argument-analysis-card .analysis-section h3 {
+  margin-bottom: 7px;
+}
+
+.argument-page .thesis-list,
+.argument-page .material-list,
+.argument-page .argument-horizontal-card-list,
+.argument-page .argument-subargument-card-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 9px;
+  margin-top: 0;
+}
+
+.argument-page .thesis-item {
+  min-height: 58px;
+  padding: 9px 10px 9px 0;
+  border: 1px solid rgba(196, 181, 253, 0.58);
+  border-radius: 14px;
+  background: rgba(245, 243, 255, 0.72);
+}
+
+.argument-page .material-list p {
+  min-height: 58px;
+  margin: 0;
+  padding: 10px 12px;
+  border: 1px solid rgba(153, 246, 228, 0.68);
+  border-radius: 14px;
+  background: rgba(240, 253, 250, 0.72);
+  overflow-wrap: anywhere;
+}
+
+.argument-page .argument-idea-card-list li,
+.argument-page .argument-warning-list li,
+.argument-page .argument-subargument-card {
+  min-height: 0;
+}
+
+.argument-page .argument-recommended-thesis {
+  margin-top: 0;
+}
+
+@media (max-width: 760px) {
+  .argument-page .argument-analysis-card,
+  .argument-page .thesis-list,
+  .argument-page .material-list,
+  .argument-page .argument-horizontal-card-list,
+  .argument-page .argument-subargument-card-list {
+    grid-template-columns: minmax(0, 1fr);
   }
 }

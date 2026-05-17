@@ -1,5 +1,10 @@
 import type { ChatMessage } from '../types/llm'
 import { getStudentLearningMode } from './settingsService'
+import {
+  DIAGNOSIS_JSON_SCHEMA,
+  DIAGNOSIS_SCORING_RULE,
+  DIAGNOSIS_SCORING_STANDARD,
+} from './essayDiagnosisStandard'
 
 type TopicAnalysisOptions = {
   depth: string
@@ -65,6 +70,7 @@ ${buildStudentLearningModeRules(studentLearningMode)}
 4. 不要使用 \`\`\`json 或 \`\`\` 代码块。
 5. 字段名必须严格使用下面结构，不要新增顶层字段。
 6. 所有数组为空时返回 []，未知文本返回空字符串。
+7. recommendedIdeas 固定输出 3 条，warnings 输出 2-3 条。
 
 JSON 结构：
 {
@@ -104,6 +110,7 @@ ${buildStudentLearningModeRules(studentLearningMode)}
 4. 不要使用 \`\`\`json 或 \`\`\` 代码块。
 5. 字段名必须严格使用下面结构，不要新增顶层字段。
 6. 所有数组为空时返回 []，未知文本返回空字符串。
+7. recommendedIdeas 固定输出 3 条，warnings 输出 2-3 条。
 
 JSON 结构：
 {
@@ -113,6 +120,8 @@ JSON 结构：
     "writingFocus": "写作重点",
     "warning": "容易跑题的提醒"
   },
+  "recommendedIdeas": ["立意方向1", "立意方向2", "立意方向3"],
+  "warnings": ["避坑提醒1", "避坑提醒2"],
   "centralArguments": ["可选中心论点1", "可选中心论点2", "可选中心论点3"],
   "recommendedArgument": "最推荐的中心论点",
   "subArguments": [
@@ -173,22 +182,32 @@ JSON 结构：
   ]
 }
 
-export function buildEssayDiagnosisPrompt(input: string): ChatMessage[] {
+export function buildEssayDiagnosisPrompt(input: { essay: string; topic: string }): ChatMessage[] {
   const studentLearningMode = getStudentLearningMode()
 
   return [
     systemPrompt,
     {
       role: 'user',
-      content: `请按 60 分制诊断下面这篇高中作文，综合得分和维度评分都必须使用 0-60 的分值。
+      content: `请严格按指定作文等级评分标准诊断下面这篇高中作文。
 
-作文内容：
-${input}
+作文题目或材料：
+${input.topic}
+
+学生作文内容：
+${input.essay}
 
 你的身份：一名严格但温和的高中语文老师。
 
 ${buildStudentLearningModeRules(studentLearningMode)}
-作文诊断特别要求：optimizedExample 只能输出一小段片段优化，不要重写整篇作文；需要给出下一步练习建议。
+作文诊断特别要求：
+1. 内容维度必须先判断学生作文是否符合题目或材料要求，再判定等级和分数。
+2. dimensionScores 中“内容”的 basis 必须明确写出切题、基本切题或偏题依据。
+3. optimizedExample 只能输出一小段片段优化，不要重写整篇作文；需要给出下一步练习建议。
+
+${DIAGNOSIS_SCORING_STANDARD}
+
+${DIAGNOSIS_SCORING_RULE}
 
 输出要求：
 1. 只返回一个 JSON 对象。
@@ -199,24 +218,7 @@ ${buildStudentLearningModeRules(studentLearningMode)}
 6. 所有数组为空时返回 []，未知文本返回空字符串，未知分数返回 null。
 
 JSON 结构：
-{
-  "totalScore": 49,
-  "level": "良好",
-  "percentile": "整体表现处于较好水平",
-  "dimensionScores": [
-    { "label": "审题立意", "score": 48 },
-    { "label": "结构层次", "score": 51 },
-    { "label": "论证逻辑", "score": 47 },
-    { "label": "素材运用", "score": 46 },
-    { "label": "语言表达", "score": 52 }
-  ],
-  "mainProblems": [
-    { "title": "主要问题标题", "description": "具体问题说明" }
-  ],
-  "suggestions": ["修改建议1", "修改建议2", "修改建议3"],
-  "optimizedExample": "一小段片段优化示例",
-  "nextPracticeSuggestions": ["下一步练习建议1", "下一步练习建议2", "下一步练习建议3"]${thinkingPromptsSchema(studentLearningMode)}
-}
+${DIAGNOSIS_JSON_SCHEMA.replace(/\n}$/, `${thinkingPromptsSchema(studentLearningMode)}\n}`)}
 `,
     },
   ]

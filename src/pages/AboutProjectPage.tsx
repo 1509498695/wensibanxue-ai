@@ -21,7 +21,7 @@ import PageHero from '../components/common/PageHero'
 const productPositioning = ['面向高中学生和语文教师', '聚焦议论文写作', '强调辅助学习，而非直接代写']
 
 const coreFeatures = [
-  { label: '审题立意助手', icon: ClipboardCheck },
+  { label: '升格思辨', icon: ClipboardCheck },
   { label: '议论文论点生成器', icon: FilePenLine },
   { label: '素材推荐器', icon: BookOpenCheck },
   { label: '作文诊断助手', icon: NotebookPen },
