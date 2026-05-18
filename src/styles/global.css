@@ -5658,6 +5658,27 @@ select.settings-input {
   margin-top: 4px;
 }
 
+.diagnosis-content-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px 14px;
+  min-width: 0;
+  margin-top: 4px;
+}
+
+.diagnosis-content-header .diagnosis-content-title {
+  margin-top: 0;
+}
+
+.diagnosis-upload-button {
+  min-height: 38px;
+  padding-inline: 14px;
+  font-size: 13px;
+  font-weight: 900;
+}
+
 .diagnosis-topic-textarea {
   width: 100%;
   min-height: 76px;
@@ -5820,9 +5841,16 @@ select.settings-input {
   grid-template-columns: 26px 52px minmax(0, 1fr) 48px auto;
   gap: 8px 10px;
   align-items: center;
+  min-width: 0;
   color: var(--color-text);
   font-size: 13px;
   font-weight: 800;
+}
+
+.dimension-row > strong {
+  min-width: 0;
+  justify-self: end;
+  white-space: nowrap;
 }
 
 .dimension-icon {
@@ -5852,25 +5880,31 @@ select.settings-input {
 
 .dimension-progress {
   height: 6px;
+  min-width: 0;
 }
 
 .dimension-grade {
   width: max-content;
+  max-width: 100%;
+  justify-self: end;
   padding: 2px 8px;
   border-radius: 999px;
   color: var(--color-primary-600);
   background: #eff6ff;
   font-size: 12px;
   font-weight: 950;
+  white-space: nowrap;
 }
 
 .dimension-basis {
   grid-column: 2 / -1;
+  min-width: 0;
   margin: -2px 0 0;
   color: var(--color-muted);
   font-size: 12px;
   font-weight: 650;
   line-height: 1.5;
+  overflow-wrap: anywhere;
 }
 
 .small-title-icon.is-red {
@@ -8152,6 +8186,61 @@ body {
 
 .diagnosis-results-grid > * {
   min-width: 0;
+}
+
+.score-overview-card {
+  container-type: inline-size;
+  overflow: hidden;
+}
+
+@container (max-width: 560px) {
+  .score-overview-body {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 16px;
+    align-items: stretch;
+  }
+
+  .score-summary {
+    min-height: 0;
+    padding: 0 0 16px;
+    border-right: 0;
+    border-bottom: 1px solid rgba(226, 232, 240, 0.98);
+  }
+
+  .dimension-row {
+    grid-template-columns: 26px minmax(0, 1fr) auto auto;
+    grid-template-areas:
+      "icon label score grade"
+      ". progress progress progress"
+      ". basis basis basis";
+    gap: 7px 8px;
+  }
+
+  .dimension-icon {
+    grid-area: icon;
+  }
+
+  .dimension-label {
+    grid-area: label;
+  }
+
+  .dimension-progress {
+    grid-area: progress;
+    width: 100%;
+  }
+
+  .dimension-row > strong {
+    grid-area: score;
+  }
+
+  .dimension-grade {
+    grid-area: grade;
+  }
+
+  .dimension-basis {
+    grid-area: basis;
+    margin-top: -1px;
+  }
 }
 
 .suggestion-card::after {

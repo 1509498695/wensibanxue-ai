@@ -54,7 +54,7 @@ function AboutProjectPage() {
         className="about-project-hero"
         icon={<GraduationCap size={34} strokeWidth={2.1} />}
         subtitle="面向高中语文学习场景，帮助学生提升审题、构思、论证和表达能力。"
-        title="文思伴学 AI —— 高中语文智能写作助手"
+        title="议论文议写通 —— 高中语文智能写作助手"
         tone="blue"
         variant="about"
       />

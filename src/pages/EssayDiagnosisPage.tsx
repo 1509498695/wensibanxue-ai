@@ -9,6 +9,7 @@ import {
   PenTool,
   Rocket,
   Sparkles,
+  Upload,
 } from 'lucide-react'
 import RefineActionBar, { type RefineActionItem } from '../components/common/RefineActionBar'
 import ExportMenu from '../components/common/ExportMenu'
@@ -58,11 +59,51 @@ function EssayDiagnosisPage() {
   const [structuredResult, setStructuredResult] = useState<EssayDiagnosisResult | null>(null)
   const [isTextFallback, setIsTextFallback] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
+  const [isReadingFile, setIsReadingFile] = useState(false)
   const [refiningAction, setRefiningAction] = useState<DiagnosisRefineAction | null>(null)
   const [error, setError] = useState('')
   const [copyStatus, setCopyStatus] = useState('')
-  const isBusy = isLoading || refiningAction !== null
+  const isBusy = isLoading || refiningAction !== null || isReadingFile
   const studentLearningMode = getStudentLearningMode()
+
+  const resetDiagnosisResult = () => {
+    setResultText('')
+    setStructuredResult(null)
+    setIsTextFallback(false)
+  }
+
+  const handleUploadEssayFile = async () => {
+    if (!window.wensibanxue?.openEssayFile) {
+      setError('请在桌面端使用本地文件上传功能。')
+      setCopyStatus('')
+      return
+    }
+
+    setIsReadingFile(true)
+    setError('')
+    setCopyStatus('')
+
+    try {
+      const result = await window.wensibanxue.openEssayFile()
+
+      if (result.canceled) {
+        return
+      }
+
+      if (result.error || !result.text) {
+        setError(result.error || '文件内容为空，请选择包含作文内容的文件。')
+        return
+      }
+
+      setEssayContent(result.text)
+      resetDiagnosisResult()
+      setCopyStatus(`已读取：${result.fileName || '作文文件'}`)
+    } catch {
+      setError('文件读取失败，请稍后重试。')
+    } finally {
+      setIsReadingFile(false)
+    }
+  }
 
   const handleGenerate = async () => {
     const trimmedTopic = essayTopic.trim()
@@ -276,11 +317,17 @@ function EssayDiagnosisPage() {
           placeholder="请输入作文题目、材料或写作要求"
           value={essayTopic}
         />
-        <div className="card-title diagnosis-content-title">
-          <span className="small-title-icon is-orange">
-            <PenTool size={19} />
-          </span>
-          作文内容
+        <div className="diagnosis-content-header">
+          <div className="card-title diagnosis-content-title">
+            <span className="small-title-icon is-orange">
+              <PenTool size={19} />
+            </span>
+            作文内容
+          </div>
+          <button className="secondary-button diagnosis-upload-button" disabled={isBusy} onClick={handleUploadEssayFile} type="button">
+            {isReadingFile ? <span className="loading-spinner" /> : <Upload size={18} />}
+            {isReadingFile ? '读取中...' : '上传文件'}
+          </button>
         </div>
         <textarea
           aria-label="作文内容"

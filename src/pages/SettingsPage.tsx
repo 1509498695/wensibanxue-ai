@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import {
   Bot,
+  ClipboardCopy,
   Database,
   Download,
   Eye,
@@ -33,6 +34,36 @@ import type { ChatMessage, LLMConfig } from '../types/llm'
 import { createExportFileName, downloadTextFile } from '../utils/exportText'
 
 const difficultyOptions = ['基础', '提升', '高分']
+
+function createDefaultApiConfigJson(config: AppSettings) {
+  const apiKeysByProvider = {
+    ...config.apiKeysByProvider,
+    [config.provider]: config.apiKey,
+  }
+
+  return JSON.stringify(
+    {
+      provider: config.provider,
+      apiBaseUrl: config.apiBaseUrl,
+      apiKey: config.apiKey,
+      apiKeysByProvider,
+      model: config.model,
+      temperature: config.temperature,
+      maxTokens: config.maxTokens,
+      defaultDifficulty: config.defaultDifficulty,
+      saveHistory: config.saveHistory,
+      showHomeOnLaunch: config.showHomeOnLaunch,
+      demoMode: config.demoMode,
+      studentLearningMode: config.studentLearningMode,
+      studentMode: config.studentLearningMode,
+      autoRepairJson: config.autoRepairJson,
+      customApiBaseUrl: config.customApiBaseUrl,
+      customModel: config.customModel,
+    },
+    null,
+    2,
+  )
+}
 
 function SettingsPage() {
   const [config, setConfig] = useState<AppSettings>(() => loadAppSettings())
@@ -189,6 +220,15 @@ function SettingsPage() {
     showToast('配置已清空')
   }
 
+  const handleCopyDefaultConfig = async () => {
+    try {
+      await navigator.clipboard.writeText(createDefaultApiConfigJson(config))
+      showToast('已复制默认配置 JSON')
+    } catch {
+      showToast('复制失败，请检查剪贴板权限')
+    }
+  }
+
   const handleClearHistory = () => {
     clearHistory()
     showToast('历史记录已清空')
@@ -203,7 +243,7 @@ function SettingsPage() {
     }
 
     const exportContent = [
-      '# 文思伴学 AI 历史记录',
+      '# 议论文议写通历史记录',
       '',
       `导出时间：${new Date().toLocaleString('zh-CN', { hour12: false })}`,
       '',
@@ -234,6 +274,9 @@ function SettingsPage() {
           </div>
           <p className="settings-api-hint">
             本应用支持 OpenAI 兼容 Chat Completions 接口。请确认你的服务商支持 /chat/completions 格式。
+          </p>
+          <p className="settings-api-hint">
+            “保存配置”只保存到当前电脑；如需发给其他用户直接使用，请复制当前配置 JSON，保存为 build/default-api-config.local.json 后重新打包。
           </p>
 
           <div className="settings-form-grid">
@@ -360,6 +403,10 @@ function SettingsPage() {
             <button className="settings-danger-button" onClick={handleClear} type="button">
               <RotateCcw size={18} />
               清空配置
+            </button>
+            <button className="secondary-button" onClick={handleCopyDefaultConfig} type="button">
+              <ClipboardCopy size={18} />
+              复制配置 JSON
             </button>
           </div>
         </article>

@@ -16,9 +16,7 @@ function Sidebar({ activePage, onPageChange }: SidebarProps) {
           <Feather className="brand-feather" size={34} strokeWidth={2.1} />
           <Sparkles className="brand-spark" size={17} strokeWidth={2.5} />
         </div>
-        <div className="brand-title">
-          文思伴学 <span>AI</span>
-        </div>
+        <div className="brand-title">议论文议写通</div>
       </div>
 
       <nav className="sidebar-nav">

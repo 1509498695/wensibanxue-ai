@@ -9,7 +9,7 @@ type OnboardingModalProps = {
 const onboardingSteps = [
   {
     icon: Sparkles,
-    title: '欢迎使用文思伴学 AI',
+    title: '欢迎使用议论文议写通',
     description: '这是一个面向高中语文学习的 AI 写作助手，帮助你审题、构思、积累素材和修改作文。',
   },
   {

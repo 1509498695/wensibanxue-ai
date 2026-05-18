@@ -25,6 +25,14 @@ declare global {
     extensions: string[]
   }
 
+  type OpenEssayFileResult = {
+    canceled: boolean
+    error?: string
+    fileName?: string
+    filePath?: string
+    text?: string
+  }
+
   interface Window {
     electronAPI?: {
       getConfig: () => Promise<RendererAppConfig>
@@ -46,6 +54,7 @@ declare global {
         canceled: boolean
         filePath?: string
       }>
+      openEssayFile?: () => Promise<OpenEssayFileResult>
       getConfig?: () => Promise<RendererAppConfig>
       setConfig?: (config: RendererAppConfig) => Promise<{ ok: boolean }>
       clearConfig?: () => Promise<{ ok: boolean }>

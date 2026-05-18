@@ -2,7 +2,7 @@
   "name": "wensibanxue-ai",
   "private": true,
   "version": "0.0.0",
-  "description": "文思伴学 AI - 高中语文议论文 AI 学习助手",
+  "description": "议论文议写通 - 高中语文议论文 AI 学习助手",
   "author": "wensibanxue-ai",
   "type": "module",
   "main": "dist-electron/main.js",
@@ -16,8 +16,8 @@
   },
   "build": {
     "appId": "com.wensibanxue.ai",
-    "productName": "文思伴学 AI",
-    "copyright": "Copyright © 2026 文思伴学 AI",
+    "productName": "议论文议写通",
+    "copyright": "Copyright © 2026 议论文议写通",
     "electronDist": "node_modules/electron/dist",
     "electronVersion": "39.8.9",
     "directories": {
@@ -27,6 +27,7 @@
     "files": [
       "dist/**/*",
       "dist-electron/**/*",
+      "build/default-api-config.local.json",
       "build/icon.ico",
       "package.json"
     ],
@@ -61,12 +62,14 @@
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
       "deleteAppDataOnUninstall": false,
-      "shortcutName": "文思伴学 AI"
+      "shortcutName": "议论文议写通"
     }
   },
   "dependencies": {
     "electron-store": "^11.0.2",
     "lucide-react": "^1.14.0",
+    "mammoth": "^1.12.0",
+    "pdf-parse": "^2.4.5",
     "react": "^19.2.5",
     "react-dom": "^19.2.5",
     "react-markdown": "^10.1.0"

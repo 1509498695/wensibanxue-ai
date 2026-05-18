@@ -16,7 +16,7 @@ import { hydrateAppSettings } from './services/settingsService'
 
 const PAGE_META: Record<PageKey, { title: string; description: string }> = {
   dashboard: {
-    title: '高中语文 AI 学习助手',
+    title: '议论文议写通',
     description: '专注议论文写作，帮助你审题更精准，论点更深刻，素材更丰富，表达更出色。',
   },
   about: {
@@ -98,7 +98,7 @@ function App() {
       ) : (
         <section className="page-placeholder">
           <div className="page-placeholder__copy">
-            <p className="eyebrow">文思伴学 AI</p>
+            <p className="eyebrow">议论文议写通</p>
             <h1>{page.title}</h1>
             <p>{page.description}</p>
           </div>

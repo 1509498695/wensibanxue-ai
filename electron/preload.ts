@@ -39,5 +39,13 @@ contextBridge.exposeInMainWorld('wensibanxue', {
       canceled: boolean
       filePath?: string
     }>,
+  openEssayFile: () =>
+    ipcRenderer.invoke('wensibanxue:open-essay-file') as Promise<{
+      canceled: boolean
+      error?: string
+      fileName?: string
+      filePath?: string
+      text?: string
+    }>,
   ...configApi,
 })

@@ -35,18 +35,18 @@ const abilities = [
 
 const features = [
   {
-    key: 'idea',
-    title: '升格思辨',
-    description: '基于关键词追问利弊与判断标准，帮助观点更有辨析度。',
-    icon: ClipboardCheck,
-    tone: 'blue',
-  },
-  {
     key: 'argument',
     title: '议论文论点生成器',
     description: '多角度生成优质论点，帮助你构建清晰有力的论证框架。',
     icon: Sparkles,
     tone: 'purple',
+  },
+  {
+    key: 'idea',
+    title: '升格思辨',
+    description: '基于关键词追问利弊与判断标准，帮助观点更有辨析度。',
+    icon: ClipboardCheck,
+    tone: 'blue',
   },
   {
     key: 'material',
@@ -146,7 +146,7 @@ function HomePage({ onNavigate, onOpenOnboarding }: HomePageProps) {
         subtitle="专注议论文写作，助你思辨更深入，论点更深刻，素材更丰富，作文更出色！"
         title={
           <>
-            高中语文 <span className="hero-ai">AI</span> 学习助手
+            议论文议写通 <span className="hero-ai">AI</span> 写作助手
           </>
         }
         tone="blue"

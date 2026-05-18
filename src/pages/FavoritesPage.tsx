@@ -39,7 +39,7 @@ function formatFavoriteText(item: FavoriteItem) {
 
 function formatFavoritesExport(items: FavoriteItem[]) {
   return [
-    '文思伴学 AI 收藏夹',
+    '议论文议写通收藏夹',
     `导出时间：${new Date().toLocaleString('zh-CN')}`,
     '',
     items.length > 0 ? items.map((item, index) => `${index + 1}. ${formatFavoriteText(item)}`).join('\n\n') : '暂无收藏内容',
