@@ -26,7 +26,7 @@ export type UpgradeThinkingDraft = {
 
 export const upgradeThinkingQuestions: UpgradeThinkingQuestion[] = [
   { id: 'prosCons', label: '利与弊？', questionText: '利与弊？' },
-  { id: 'criteria', label: '不简单一分为二', questionText: '不简单一分为二，给出具体的标准。' },
+  { id: 'criteria', label: '不简单一分为二，给出具体的标准。', questionText: '不简单一分为二，给出具体的标准。' },
 ]
 
 export const MAX_UPGRADE_THINKING_DRAFTS = 20

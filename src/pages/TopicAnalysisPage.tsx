@@ -33,7 +33,7 @@ import {
   upgradeThinkingQuestions,
   upsertUpgradeThinkingDraft,
 } from '../services/upgradeThinking'
-import { formatFollowUpKeywords, parseFollowUpKeywords } from '../services/keywordFollowUp'
+import { parseFollowUpKeywords } from '../services/keywordFollowUp'
 import { exportResultFile } from '../utils/exportFile'
 import type { ResultExportFormat } from '../utils/exportFormatter'
 import {
@@ -47,6 +47,10 @@ function uniqueKeywords(keywords: string[]) {
   return Array.from(new Set(keywords.map((keyword) => keyword.trim()).filter(Boolean))).slice(0, 8)
 }
 
+function getSingleKeyword(value: string) {
+  return parseFollowUpKeywords(value)[0] || ''
+}
+
 function composeUpgradeThinkingText(fullQuestion: string, viewpoints: string[], answer: string) {
   return [
     fullQuestion ? `## 思辨问题\n${fullQuestion}` : '',
@@ -58,7 +62,7 @@ function composeUpgradeThinkingText(fullQuestion: string, viewpoints: string[], 
 function TopicAnalysisPage() {
   const [initialPageState] = useState(() => readLastTopicAnalysisState())
   const [argumentPageState] = useState(() => readLastArgumentGeneratorState())
-  const [keyword, setKeyword] = useState(initialPageState.followUpKeyword || '')
+  const [keyword, setKeyword] = useState(() => getSingleKeyword(initialPageState.followUpKeyword || ''))
   const [questionId, setQuestionId] = useState<UpgradeThinkingQuestionId | undefined>(() =>
     isUpgradeThinkingQuestionId(initialPageState.followUpQuestionId) ? initialPageState.followUpQuestionId : undefined,
   )
@@ -71,8 +75,7 @@ function TopicAnalysisPage() {
   const [error, setError] = useState('')
   const [copyStatus, setCopyStatus] = useState('')
   const recommendedKeywords = uniqueKeywords(argumentPageState.structuredResult?.analysis?.keywords || [])
-  const selectedKeywords = parseFollowUpKeywords(keyword)
-  const selectedKeywordSet = new Set(selectedKeywords)
+  const selectedKeyword = getSingleKeyword(keyword)
   const argumentInput = argumentPageState.input || ''
   const argumentText = argumentPageState.resultText || ''
 
@@ -83,14 +86,14 @@ function TopicAnalysisPage() {
       structuredResult: null,
       isTextFallback: false,
       lastGeneratedAt,
-      followUpKeyword: keyword,
+      followUpKeyword: selectedKeyword,
       followUpQuestionId: questionId,
       followUpFullQuestion: fullQuestion,
       followUpAnswer: answer,
       followUpSummaries: viewpoints,
       followUpDrafts: drafts,
     })
-  }, [answer, argumentInput, drafts, fullQuestion, keyword, lastGeneratedAt, questionId, viewpoints])
+  }, [answer, argumentInput, drafts, fullQuestion, lastGeneratedAt, questionId, selectedKeyword, viewpoints])
 
   const clearCurrentResult = () => {
     setQuestionId(undefined)
@@ -100,21 +103,16 @@ function TopicAnalysisPage() {
   }
 
   const handleKeywordChange = (value: string) => {
-    setKeyword(value)
+    setKeyword(getSingleKeyword(value))
     clearCurrentResult()
   }
 
   const handleKeywordChipClick = (item: string) => {
-    const nextKeywords = selectedKeywordSet.has(item)
-      ? selectedKeywords.filter((keywordItem) => keywordItem !== item)
-      : [...selectedKeywords, item]
-
-    handleKeywordChange(formatFollowUpKeywords(nextKeywords))
+    handleKeywordChange(selectedKeyword === item ? '' : item)
   }
 
   const handleAsk = async (nextQuestionId: UpgradeThinkingQuestionId, forceRegenerate = false) => {
-    const parsedKeywords = parseFollowUpKeywords(keyword)
-    const activeKeyword = parsedKeywords[0] || ''
+    const activeKeyword = getSingleKeyword(keyword)
     const question = getUpgradeThinkingQuestion(nextQuestionId)
     const nextFullQuestion = activeKeyword ? buildUpgradeThinkingFullQuestion(activeKeyword, nextQuestionId) : ''
     const draftKey = buildUpgradeThinkingDraftKey(nextQuestionId, nextFullQuestion)
@@ -153,7 +151,7 @@ function TopicAnalysisPage() {
       const draft = createUpgradeThinkingDraft({
         answer: result.answer,
         fullQuestion: nextFullQuestion,
-        keyword,
+        keyword: activeKeyword,
         questionId: nextQuestionId,
         viewpoints: result.viewpoints,
       })
@@ -194,7 +192,7 @@ function TopicAnalysisPage() {
       const draft = createUpgradeThinkingDraft({
         answer: result.answer,
         fullQuestion: nextFullQuestion,
-        keyword,
+        keyword: activeKeyword,
         questionId: nextQuestionId,
         viewpoints: result.viewpoints,
       })
@@ -287,7 +285,7 @@ function TopicAnalysisPage() {
               className="keyword-follow-up-input"
               disabled={isLoading}
               onChange={(event) => handleKeywordChange(event.target.value)}
-              placeholder="例如：责任、青年、时代"
+              placeholder="例如：责任"
               value={keyword}
             />
           </label>
@@ -298,7 +296,7 @@ function TopicAnalysisPage() {
               <div className="keyword-follow-up-chip-list">
                 {recommendedKeywords.map((item) => (
                   <button
-                    className={`keyword-chip${selectedKeywordSet.has(item) ? ' is-active' : ''}`}
+                    className={`keyword-chip${selectedKeyword === item ? ' is-active' : ''}`}
                     disabled={isLoading}
                     key={item}
                     onClick={() => handleKeywordChipClick(item)}
