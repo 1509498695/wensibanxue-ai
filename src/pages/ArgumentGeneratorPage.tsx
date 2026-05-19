@@ -277,7 +277,7 @@ function ArgumentGeneratorPage() {
     const draftKey = buildKeywordFollowUpDraftKey(questionId, fullQuestion)
 
     if (!resultText) {
-      setError('请先生成结果后再追问')
+      setError('请先生成论点结果后再追问')
       return
     }
 
@@ -490,21 +490,21 @@ function ArgumentGeneratorPage() {
         />
       ) : null}
 
-      {resultText ? (
-        <KeywordFollowUpPanel
-          answer={followUpAnswer}
-          disabled={isBusy}
-          fullQuestion={followUpFullQuestion}
-          isLoading={isFollowUpLoading}
-          keyword={followUpKeyword}
-          keywords={followUpKeywords}
-          onAsk={handleKeywordFollowUp}
-          onKeywordChange={handleFollowUpKeywordChange}
-          onRegenerate={handleRegenerateKeywordFollowUp}
-          questionId={followUpQuestionId}
-          summaries={followUpSummaries}
-        />
-      ) : null}
+      <KeywordFollowUpPanel
+        answer={followUpAnswer}
+        askDisabledReason="请先生成论点结果后再追问"
+        canAsk={Boolean(resultText)}
+        disabled={isBusy}
+        fullQuestion={followUpFullQuestion}
+        isLoading={isFollowUpLoading}
+        keyword={followUpKeyword}
+        keywords={followUpKeywords}
+        onAsk={handleKeywordFollowUp}
+        onKeywordChange={handleFollowUpKeywordChange}
+        onRegenerate={handleRegenerateKeywordFollowUp}
+        questionId={followUpQuestionId}
+        summaries={followUpSummaries}
+      />
 
       {structuredResult ? (
         <ArgumentGeneratorCards onFavoriteStatus={setCopyStatus} result={structuredResult} />

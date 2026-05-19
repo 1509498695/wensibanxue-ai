@@ -9,6 +9,8 @@ import {
 
 type KeywordFollowUpPanelProps = {
   answer: string
+  askDisabledReason?: string
+  canAsk?: boolean
   disabled?: boolean
   fullQuestion: string
   isLoading?: boolean
@@ -27,6 +29,8 @@ function uniqueKeywords(keywords: string[]) {
 
 function KeywordFollowUpPanel({
   answer,
+  askDisabledReason,
+  canAsk = true,
   disabled = false,
   fullQuestion,
   isLoading = false,
@@ -104,9 +108,15 @@ function KeywordFollowUpPanel({
           {keywordFollowUpQuestions.map((question) => {
             const isActive = questionId === question.id
             const isQuestionLoading = isLoading && isActive
+            const multipleKeywordsDisabled = Boolean(question.requiresMultipleKeywords && selectedKeywords.length < 2)
             const isDisabled =
-              disabled || Boolean(question.requiresMultipleKeywords && selectedKeywords.length < 2)
+              disabled || !canAsk || multipleKeywordsDisabled
             const label = question.hint ? `${question.label}（${question.hint}）` : question.label
+            const disabledTitle = !canAsk
+              ? askDisabledReason
+              : multipleKeywordsDisabled
+                ? '请至少选择或输入 2 个关键词'
+                : undefined
 
             return (
               <button
@@ -115,7 +125,7 @@ function KeywordFollowUpPanel({
                 key={question.id}
                 onClick={() => onAsk(question.id)}
                 type="button"
-                title={question.requiresMultipleKeywords ? '请至少选择或输入 2 个关键词' : undefined}
+                title={disabledTitle}
               >
                 {isQuestionLoading ? <span className="loading-spinner" /> : <SendHorizontal size={15} />}
                 {isQuestionLoading ? '追问中...' : label}

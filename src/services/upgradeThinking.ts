@@ -26,7 +26,7 @@ export type UpgradeThinkingDraft = {
 
 export const upgradeThinkingQuestions: UpgradeThinkingQuestion[] = [
   { id: 'prosCons', label: '利与弊？', questionText: '利与弊？' },
-  { id: 'criteria', label: '不简单的一分为二', questionText: '不简单的一分为二，给出具体的标准。' },
+  { id: 'criteria', label: '不简单一分为二', questionText: '不简单一分为二，给出具体的标准。' },
 ]
 
 export const MAX_UPGRADE_THINKING_DRAFTS = 20
@@ -225,7 +225,7 @@ ${buildStudentLearningModeRule(studentLearningMode)}
 3. 推荐观点最多 5 条，每条不超过 20 字。
 4. 回答要服务高中议论文写作，不能直接代写完整作文。
 5. 如果问题是“利与弊”，请给出可辩证展开的利弊角度，并提醒如何避免只列优缺点。
-6. 如果问题是“不简单的一分为二”，请给出判断标准，帮助学生形成更细的分类和条件意识。
+6. 如果问题是“不简单一分为二”，请给出判断标准，帮助学生形成更细的分类和条件意识。
 7. 正文控制在 3 到 5 个要点内，语言适合高中生理解。`,
     },
   ]

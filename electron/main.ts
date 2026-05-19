@@ -50,6 +50,37 @@ async function extractPdfText(buffer: Buffer) {
   }
 }
 
+function registerEditingContextMenu(window: BrowserWindow) {
+  window.webContents.on('context-menu', (_event, params) => {
+    const hasSelection = params.selectionText.trim().length > 0
+
+    if (!params.isEditable && !hasSelection) {
+      return
+    }
+
+    const editFlags = params.editFlags
+    const template: Electron.MenuItemConstructorOptions[] = params.isEditable
+      ? [
+          { label: '撤销', role: 'undo', enabled: editFlags.canUndo },
+          { label: '重做', role: 'redo', enabled: editFlags.canRedo },
+          { type: 'separator' },
+          { label: '剪切', role: 'cut', enabled: editFlags.canCut },
+          { label: '复制', role: 'copy', enabled: editFlags.canCopy },
+          { label: '粘贴', role: 'paste', enabled: editFlags.canPaste },
+          { label: '删除', role: 'delete', enabled: editFlags.canDelete },
+          { type: 'separator' },
+          { label: '全选', role: 'selectAll', enabled: editFlags.canSelectAll },
+        ]
+      : [
+          { label: '复制', role: 'copy', enabled: editFlags.canCopy || hasSelection },
+          { type: 'separator' },
+          { label: '全选', role: 'selectAll', enabled: editFlags.canSelectAll },
+        ]
+
+    Menu.buildFromTemplate(template).popup({ window })
+  })
+}
+
 ipcMain.handle('wensibanxue:save-file', async (_event, options: SaveFileOptions) => {
   const { canceled, filePath } = await dialog.showSaveDialog({
     defaultPath: options.defaultFileName,
@@ -152,6 +183,7 @@ function createMainWindow() {
   })
 
   Menu.setApplicationMenu(null)
+  registerEditingContextMenu(mainWindow)
 
   mainWindow.once('ready-to-show', () => {
     mainWindow.show()

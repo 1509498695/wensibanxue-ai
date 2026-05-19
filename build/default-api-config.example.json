@@ -1,0 +1,20 @@
+{
+  "provider": "deepseek",
+  "apiBaseUrl": "https://api.deepseek.com",
+  "apiKey": "替换为你的APIKey",
+  "apiKeysByProvider": {
+    "deepseek": "替换为你的APIKey"
+  },
+  "model": "deepseek-v4-flash",
+  "temperature": "0.7",
+  "maxTokens": "2000",
+  "defaultDifficulty": "提升",
+  "saveHistory": true,
+  "showHomeOnLaunch": true,
+  "demoMode": false,
+  "studentLearningMode": true,
+  "studentMode": true,
+  "autoRepairJson": true,
+  "customApiBaseUrl": "",
+  "customModel": ""
+}
